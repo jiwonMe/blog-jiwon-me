@@ -13,15 +13,23 @@
   "dependencies": {
     "@jiwonme/jds": "workspace:*",
     "@tailwindcss/postcss": "^4.1.8",
+    "highlight.js": "^11.11.1",
+    "katex": "^0.16.22",
     "next": "^15.3.0",
     "postcss": "^8.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
     "tailwindcss": "^4.1.8"
   },
   "devDependencies": {
     "@jiwonme/eslint-config": "workspace:*",
     "@jiwonme/typescript-config": "workspace:*",
+    "@types/katex": "^0.16.7",
     "@types/node": "^22.15.3",
     "@types/react": "19.1.0",
     "@types/react-dom": "19.1.1",
