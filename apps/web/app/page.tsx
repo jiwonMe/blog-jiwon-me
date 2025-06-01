@@ -40,37 +40,50 @@ export default async function Home() {
           {recentPosts.map((post) => (
             <article
               key={post.id}
-              className="group rounded-lg border p-6 hover:shadow-md transition-shadow"
+              className="group rounded-lg border overflow-hidden hover:shadow-md transition-shadow"
             >
-              <div className="flex flex-col space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  {post.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground"
+              <div className="flex flex-col">
+                {/* Thumbnail */}
+                {post.coverImage && (
+                  <div className="aspect-video overflow-hidden">
+                    <img
+                      src={post.coverImage}
+                      alt={post.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                )}
+                
+                <div className="p-6 flex flex-col space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {post.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  <h3 className="text-xl font-semibold group-hover:text-primary transition-colors">
+                    <Link href={`/blog/${post.slug}`}>
+                      {post.title}
+                    </Link>
+                  </h3>
+                  <p className="text-muted-foreground text-sm line-clamp-3">
+                    {post.excerpt}
+                  </p>
+                  <div className="flex items-center justify-between pt-2">
+                    <time className="text-sm text-muted-foreground">
+                      {new Date(post.date).toLocaleDateString('ko-KR')}
+                    </time>
+                    <Link
+                      href={`/blog/${post.slug}`}
+                      className="text-sm font-medium text-primary hover:underline"
                     >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <h3 className="text-xl font-semibold group-hover:text-primary transition-colors">
-                  <Link href={`/blog/${post.slug}`}>
-                    {post.title}
-                  </Link>
-                </h3>
-                <p className="text-muted-foreground text-sm line-clamp-3">
-                  {post.excerpt}
-                </p>
-                <div className="flex items-center justify-between pt-2">
-                  <time className="text-sm text-muted-foreground">
-                    {new Date(post.date).toLocaleDateString('ko-KR')}
-                  </time>
-                  <Link
-                    href={`/blog/${post.slug}`}
-                    className="text-sm font-medium text-primary hover:underline"
-                  >
-                    읽어보기
-                  </Link>
+                      읽어보기
+                    </Link>
+                  </div>
                 </div>
               </div>
             </article>

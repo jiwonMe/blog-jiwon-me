@@ -36,48 +36,61 @@ export default async function BlogPage() {
         {blogPosts.map((post) => (
           <article
             key={post.id}
-            className="group border rounded-lg p-6 hover:shadow-md transition-shadow"
+            className="group border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
           >
-            <div className="flex flex-col space-y-4">
-              {/* Tags */}
-              <div className="flex flex-wrap gap-2">
-                {post.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-
-              {/* Title */}
-              <h2 className="text-2xl font-bold group-hover:text-primary transition-colors">
-                <Link href={`/blog/${post.slug}`}>
-                  {post.title}
-                </Link>
-              </h2>
-
-              {/* Excerpt */}
-              <p className="text-muted-foreground leading-relaxed">
-                {post.excerpt}
-              </p>
-
-              {/* Meta */}
-              <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                  <time>
-                    {new Date(post.date).toLocaleDateString('ko-KR')}
-                  </time>
-                  <span>•</span>
-                  <span>{post.readTime} 읽기</span>
+            <div className="flex flex-col md:flex-row">
+              {/* Thumbnail */}
+              {post.coverImage && (
+                <div className="md:w-1/3 aspect-video md:aspect-square overflow-hidden">
+                  <img
+                    src={post.coverImage}
+                    alt={post.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
                 </div>
-                <Link
-                  href={`/blog/${post.slug}`}
-                  className="text-sm font-medium text-primary hover:underline"
-                >
-                  계속 읽기 →
-                </Link>
+              )}
+              
+              <div className={`p-6 flex flex-col space-y-4 ${post.coverImage ? 'md:w-2/3' : 'w-full'}`}>
+                {/* Tags */}
+                <div className="flex flex-wrap gap-2">
+                  {post.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Title */}
+                <h2 className="text-2xl font-bold group-hover:text-primary transition-colors">
+                  <Link href={`/blog/${post.slug}`}>
+                    {post.title}
+                  </Link>
+                </h2>
+
+                {/* Excerpt */}
+                <p className="text-muted-foreground leading-relaxed">
+                  {post.excerpt}
+                </p>
+
+                {/* Meta */}
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                    <time>
+                      {new Date(post.date).toLocaleDateString('ko-KR')}
+                    </time>
+                    <span>•</span>
+                    <span>{post.readTime} 읽기</span>
+                  </div>
+                  <Link
+                    href={`/blog/${post.slug}`}
+                    className="text-sm font-medium text-primary hover:underline"
+                  >
+                    계속 읽기 →
+                  </Link>
+                </div>
               </div>
             </div>
           </article>

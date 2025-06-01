@@ -30,7 +30,7 @@ Create a new database in Notion with the following properties:
 | Published | Checkbox | Whether the post is published |
 
 ### Optional Properties:
-- Cover: File & Media (for cover images)
+- Cover: File & Media (for cover images - highly recommended for thumbnails)
 - Author: Person (if you have multiple authors)
 
 ## Step 3: Share Database with Integration
@@ -80,6 +80,24 @@ The integration supports the following Notion block types:
 - **Quotes**: Block quotes
 - **Images**: Both uploaded and external images
 - **Dividers**: Horizontal rules
+
+## Automatic Thumbnail Generation
+
+The blog automatically generates thumbnails for your posts using the following priority:
+
+1. **Cover Image**: If you set a cover image on your Notion page, it will be used as the thumbnail
+2. **First Image**: If no cover image is set, the first image in your post content will be used
+3. **Auto-Generated**: If no images are available, a thumbnail will be automatically generated based on:
+   - Post title
+   - Primary tag (determines color scheme)
+   - Consistent branding colors for different technologies
+
+### Thumbnail Best Practices:
+
+- **Add cover images** to your Notion pages for the best visual appeal
+- **Use high-quality images** (recommended: 1200x630 pixels for optimal display)
+- **Include images in your content** - the first image will be used as fallback
+- **Choose descriptive tags** - they influence the auto-generated thumbnail colors
 
 ## Content Writing Tips
 

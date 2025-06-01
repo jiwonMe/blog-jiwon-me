@@ -45,6 +45,7 @@ Next.js 14의 App Router를 사용하면 더욱 효율적이고 성능이 좋은
     slug: "nextjs-14-blog-setup",
     tags: ["Next.js", "React", "TypeScript"],
     readTime: "8분",
+    coverImage: "https://via.placeholder.com/1200x630/000000/FFFFFF?text=Next.js%2014%EC%99%80%20App%20Router%EB%A1%9C%20%EB%B8%94%EB%A1%9C%EA%B7%B8%20%EB%A7%8C%EB%93%A4%EA%B8%B0",
     published: true,
   },
   {
@@ -92,6 +93,7 @@ Notion API를 활용하면 개발자와 콘텐츠 작성자 모두에게 편리�
     slug: "notion-api-blog-cms",
     tags: ["Notion", "API", "CMS"],
     readTime: "12분",
+    coverImage: "https://via.placeholder.com/1200x630/4CAF50/FFFFFF?text=Notion%20API%EB%A5%BC%20%ED%99%9C%EC%9A%A9%ED%95%9C%20%EB%B8%94%EB%A1%9C%EA%B7%B8%20CMS%20%EA%B5%AC%EC%B6%95%ED%95%98%EA%B8%B0",
     published: true,
   },
   {
@@ -140,6 +142,7 @@ TypeScript를 사용하면 더욱 안전하고 유지보수하기 쉬운 React �
     slug: "typescript-react-development",
     tags: ["TypeScript", "React", "Development"],
     readTime: "10분",
+    coverImage: "https://via.placeholder.com/1200x630/3178C6/FFFFFF?text=TypeScript%EC%99%80%20React%EB%A1%9C%20%ED%83%80%EC%9E%85%20%EC%95%88%EC%A0%84%ED%95%9C%20%EA%B0%9C%EB%B0%9C%ED%95%98%EA%B8%B0",
     published: true,
   },
 ];
