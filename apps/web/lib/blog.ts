@@ -149,14 +149,15 @@ async function notionPageToBlogPost(page: PageObjectResponse, content: string, f
   const tags = getTagsFromPage(page);
   const published = getPublished(page);
   
-  // Thumbnail priority: 1. Cover image, 2. First image in content, 3. Auto-generated
+  // Thumbnail priority: 1. Cover image, 2. First image in content, 3. Auto-generated (optional)
   let thumbnail = getCoverImage(page.cover);
   if (!thumbnail && firstImageUrl) {
     thumbnail = firstImageUrl;
   }
-  if (!thumbnail) {
-    thumbnail = await generateThumbnail(title, tags);
-  }
+  // Note: Auto-generated thumbnails are handled in the UI layer for better performance
+  // if (!thumbnail) {
+  //   thumbnail = await generateThumbnail(title, tags);
+  // }
   
   const readTime = calculateReadTime(content);
 

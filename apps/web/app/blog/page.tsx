@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@jiwonme/jds";
 import { getBlogPosts, getAllTags } from "../../lib/blog";
+import { ThumbnailPlaceholder } from "../../components/thumbnail-placeholder";
 
 export default async function BlogPage() {
   // Fetch blog posts from Notion
@@ -40,17 +41,24 @@ export default async function BlogPage() {
           >
             <div className="flex flex-col md:flex-row">
               {/* Thumbnail */}
-              {post.coverImage && (
-                <div className="md:w-1/3 aspect-video md:aspect-square overflow-hidden">
+              <div className="md:w-1/3 aspect-video md:aspect-square overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+                {post.coverImage ? (
                   <img
                     src={post.coverImage}
                     alt={post.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                </div>
-              )}
+                ) : (
+                  <ThumbnailPlaceholder 
+                    title={post.title}
+                    tags={post.tags}
+                    size="sm"
+                    className="w-full h-full"
+                  />
+                )}
+              </div>
               
-              <div className={`p-6 flex flex-col space-y-4 ${post.coverImage ? 'md:w-2/3' : 'w-full'}`}>
+              <div className="p-6 flex flex-col space-y-4 md:w-2/3">
                 {/* Tags */}
                 <div className="flex flex-wrap gap-2">
                   {post.tags.map((tag) => (

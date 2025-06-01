@@ -1,6 +1,7 @@
 import { Button } from "@jiwonme/jds";
 import Link from "next/link";
 import { getBlogPosts } from "../lib/blog";
+import { ThumbnailPlaceholder } from "../components/thumbnail-placeholder";
 
 export default async function Home() {
   // Fetch recent blog posts from Notion
@@ -44,15 +45,22 @@ export default async function Home() {
             >
               <div className="flex flex-col">
                 {/* Thumbnail */}
-                {post.coverImage && (
-                  <div className="aspect-video overflow-hidden">
+                <div className="aspect-video overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+                  {post.coverImage ? (
                     <img
                       src={post.coverImage}
                       alt={post.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                  </div>
-                )}
+                  ) : (
+                    <ThumbnailPlaceholder 
+                      title={post.title}
+                      tags={post.tags}
+                      size="md"
+                      className="w-full h-full"
+                    />
+                  )}
+                </div>
                 
                 <div className="p-6 flex flex-col space-y-3">
                   <div className="flex flex-wrap gap-2">

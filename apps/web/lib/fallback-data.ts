@@ -142,7 +142,7 @@ TypeScript를 사용하면 더욱 안전하고 유지보수하기 쉬운 React �
     slug: "typescript-react-development",
     tags: ["TypeScript", "React", "Development"],
     readTime: "10분",
-    coverImage: "https://via.placeholder.com/1200x630/3178C6/FFFFFF?text=TypeScript%EC%99%80%20React%EB%A1%9C%20%ED%83%80%EC%9E%85%20%EC%95%88%EC%A0%84%ED%95%9C%20%EA%B0%9C%EB%B0%9C%ED%95%98%EA%B8%B0",
+    // coverImage: undefined, // 썸네일 없는 경우 테스트용
     published: true,
   },
 ];
