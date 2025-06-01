@@ -51,18 +51,6 @@ function generateExports(files) {
   return exports;
 }
 
-// Generate entry points for tsup
-function generateEntries(files) {
-  const entries = {};
-  
-  files.forEach(file => {
-    const entryKey = file.replace(/\.(ts|tsx)$/, '');
-    entries[entryKey] = `src/${file}`;
-  });
-  
-  return entries;
-}
-
 // Update package.json
 function updatePackageJson(exports) {
   const packagePath = path.join(__dirname, '..', 'package.json');
@@ -74,35 +62,6 @@ function updatePackageJson(exports) {
   console.log('✅ Updated package.json exports');
 }
 
-// Update tsup.config.ts
-function updateTsupConfig(entries) {
-  const configPath = path.join(__dirname, '..', 'tsup.config.ts');
-  
-  const configContent = `import { defineConfig } from "tsup";
-
-export default defineConfig({
-  entry: ${JSON.stringify(entries, null, 4)},
-  format: ["cjs", "esm"],
-  dts: true,
-  splitting: false,
-  sourcemap: true,
-  clean: true,
-  external: ["react", "react-dom"],
-  outExtension({ format }) {
-    return {
-      js: format === "cjs" ? ".cjs" : ".js",
-    };
-  },
-  esbuildOptions(options) {
-    options.jsx = "automatic";
-  },
-});
-`;
-  
-  fs.writeFileSync(configPath, configContent);
-  console.log('✅ Updated tsup.config.ts');
-}
-
 // Main function
 function main() {
   try {
@@ -112,12 +71,11 @@ function main() {
     console.log('📁 Found files:', files);
     
     const exports = generateExports(files);
-    const entries = generateEntries(files);
     
     updatePackageJson(exports);
-    updateTsupConfig(entries);
     
-    console.log('🎉 Successfully updated exports and entries!');
+    console.log('🎉 Successfully updated package.json exports!');
+    console.log('ℹ️  tsup.config.ts uses automatic file discovery - no manual update needed');
   } catch (error) {
     console.error('❌ Error:', error.message);
     process.exit(1);

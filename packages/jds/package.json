@@ -8,21 +8,8 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./components/ui/button": {
-      "types": "./dist/components/ui/button.d.ts",
-      "import": "./dist/components/ui/button.js",
-      "require": "./dist/components/ui/button.cjs"
-    },
-    "./components/ui/card": {
-      "types": "./dist/components/ui/card.d.ts",
-      "import": "./dist/components/ui/card.js",
-      "require": "./dist/components/ui/card.cjs"
-    },
-    "./lib/utils": {
-      "types": "./dist/lib/utils.d.ts",
-      "import": "./dist/lib/utils.js",
-      "require": "./dist/lib/utils.cjs"
-    },
+    "./components/*": "./dist/components/*.js",
+    "./lib/*": "./dist/lib/*.js",
     "./globals.css": "./dist/globals.css"
   },
   "main": "./dist/index.cjs",
@@ -36,17 +23,19 @@
     "generate:component": "turbo gen react-component",
     "check-types": "tsc --noEmit",
     "build": "tsup && tailwindcss -i ./src/styles/globals.css -o ./dist/globals.css",
-    "dev": "tsup --watch",
+    "dev": "tsup --watch --onSuccess 'tailwindcss -i ./src/styles/globals.css -o ./dist/globals.css'",
     "update-exports": "node scripts/update-exports.js"
   },
   "devDependencies": {
     "@jiwonme/eslint-config": "workspace:*",
     "@jiwonme/typescript-config": "workspace:*",
     "@turbo/gen": "^2.5.0",
+    "@types/glob": "^8.1.0",
     "@types/node": "^22.15.3",
     "@types/react": "19.1.0",
     "@types/react-dom": "19.1.1",
     "eslint": "^9.27.0",
+    "glob": "^11.0.2",
     "tsup": "^8.3.5",
     "typescript": "5.8.2"
   },
