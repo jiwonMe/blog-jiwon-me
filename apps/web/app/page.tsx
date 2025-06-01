@@ -1,35 +1,11 @@
 import { Button } from "@jiwonme/jds";
 import Link from "next/link";
+import { getBlogPosts } from "../lib/blog";
 
-// 임시 블로그 포스트 데이터
-const recentPosts = [
-  {
-    id: 1,
-    title: "Next.js 14와 App Router로 블로그 만들기",
-    excerpt: "최신 Next.js 14의 App Router를 사용하여 개발 블로그를 구축하는 과정을 소개합니다.",
-    date: "2024-01-15",
-    slug: "nextjs-14-blog-setup",
-    tags: ["Next.js", "React", "TypeScript"],
-  },
-  {
-    id: 2,
-    title: "Turborepo로 모노레포 구성하기",
-    excerpt: "여러 프로젝트를 효율적으로 관리할 수 있는 Turborepo 모노레포 설정 방법을 알아봅니다.",
-    date: "2024-01-10",
-    slug: "turborepo-monorepo-setup",
-    tags: ["Turborepo", "Monorepo", "DevOps"],
-  },
-  {
-    id: 3,
-    title: "TypeScript 5.0 새로운 기능들",
-    excerpt: "TypeScript 5.0에서 추가된 새로운 기능들과 개선사항들을 살펴봅니다.",
-    date: "2024-01-05",
-    slug: "typescript-5-new-features",
-    tags: ["TypeScript", "JavaScript"],
-  },
-];
-
-export default function Home() {
+export default async function Home() {
+  // Fetch recent blog posts from Notion
+  const allPosts = await getBlogPosts();
+  const recentPosts = allPosts.slice(0, 3); // Get the 3 most recent posts
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
       {/* Hero Section */}

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@jiwonme/jds": "workspace:*",
+    "@notionhq/client": "^3.1.3",
     "@tailwindcss/postcss": "^4.1.8",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.22",

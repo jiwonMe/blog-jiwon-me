@@ -1,58 +1,11 @@
 import Link from "next/link";
 import { Button } from "@jiwonme/jds";
+import { getBlogPosts, getAllTags } from "../../lib/blog";
 
-// 임시 블로그 포스트 데이터
-const blogPosts = [
-  {
-    id: 1,
-    title: "Next.js 14와 App Router로 블로그 만들기",
-    excerpt: "최신 Next.js 14의 App Router를 사용하여 개발 블로그를 구축하는 과정을 소개합니다. 파일 기반 라우팅부터 서버 컴포넌트까지 자세히 알아봅니다.",
-    date: "2024-01-15",
-    slug: "nextjs-14-blog-setup",
-    tags: ["Next.js", "React", "TypeScript"],
-    readTime: "8분",
-  },
-  {
-    id: 2,
-    title: "Turborepo로 모노레포 구성하기",
-    excerpt: "여러 프로젝트를 효율적으로 관리할 수 있는 Turborepo 모노레포 설정 방법을 알아봅니다. 패키지 간 의존성 관리와 빌드 최적화까지 다룹니다.",
-    date: "2024-01-10",
-    slug: "turborepo-monorepo-setup",
-    tags: ["Turborepo", "Monorepo", "DevOps"],
-    readTime: "12분",
-  },
-  {
-    id: 3,
-    title: "TypeScript 5.0 새로운 기능들",
-    excerpt: "TypeScript 5.0에서 추가된 새로운 기능들과 개선사항들을 살펴봅니다. const assertions, template literal types 등의 활용법을 예제와 함께 설명합니다.",
-    date: "2024-01-05",
-    slug: "typescript-5-new-features",
-    tags: ["TypeScript", "JavaScript"],
-    readTime: "10분",
-  },
-  {
-    id: 4,
-    title: "React Server Components 완전 정복",
-    excerpt: "React Server Components의 동작 원리와 실제 프로젝트에서의 활용 방법을 자세히 알아봅니다. 클라이언트 컴포넌트와의 차이점과 최적화 전략까지 다룹니다.",
-    date: "2023-12-28",
-    slug: "react-server-components-guide",
-    tags: ["React", "Next.js", "Performance"],
-    readTime: "15분",
-  },
-  {
-    id: 5,
-    title: "Tailwind CSS 디자인 시스템 구축하기",
-    excerpt: "Tailwind CSS를 활용하여 일관성 있는 디자인 시스템을 구축하는 방법을 소개합니다. 커스텀 컴포넌트 라이브러리 제작까지 단계별로 설명합니다.",
-    date: "2023-12-20",
-    slug: "tailwind-design-system",
-    tags: ["Tailwind CSS", "Design System", "UI/UX"],
-    readTime: "11분",
-  },
-];
-
-const allTags = Array.from(new Set(blogPosts.flatMap(post => post.tags)));
-
-export default function BlogPage() {
+export default async function BlogPage() {
+  // Fetch blog posts from Notion
+  const blogPosts = await getBlogPosts();
+  const allTags = await getAllTags();
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
       {/* Header */}
