@@ -33,84 +33,104 @@ export default async function BlogPage() {
       </div>
 
       {/* Blog Posts */}
-      <div className="space-y-8">
-        {blogPosts.map((post) => (
-          <article
-            key={post.id}
-            className="group border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
-          >
-            <div className="flex flex-col md:flex-row">
-              {/* Thumbnail */}
-              <div className="md:w-1/3 aspect-video md:aspect-square overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                {post.coverImage ? (
-                  <img
-                    src={post.coverImage}
-                    alt={post.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <ThumbnailPlaceholder 
-                    title={post.title}
-                    tags={post.tags}
-                    size="sm"
-                    className="w-full h-full"
-                  />
-                )}
-              </div>
-              
-              <div className="p-6 flex flex-col space-y-4 md:w-2/3">
-                {/* Tags */}
-                <div className="flex flex-wrap gap-2">
-                  {post.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground"
-                    >
-                      {tag}
-                    </span>
-                  ))}
+      <div className="space-y-6">
+        {blogPosts.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground text-lg">아직 게시된 포스트가 없습니다.</p>
+          </div>
+        ) : (
+          blogPosts.map((post) => (
+            <article
+              key={post.id}
+              className="group border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+            >
+              <div className="flex flex-col sm:flex-row">
+                {/* Thumbnail */}
+                <div className="sm:w-48 sm:h-32 aspect-video sm:aspect-auto overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center flex-shrink-0">
+                  {post.coverImage ? (
+                    <img
+                      src={post.coverImage}
+                      alt={post.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <ThumbnailPlaceholder 
+                      title={post.title}
+                      tags={post.tags}
+                      size="sm"
+                      className="w-full h-full"
+                    />
+                  )}
                 </div>
-
-                {/* Title */}
-                <h2 className="text-2xl font-bold group-hover:text-primary transition-colors">
-                  <Link href={`/blog/${post.slug}`}>
-                    {post.title}
-                  </Link>
-                </h2>
-
-                {/* Excerpt */}
-                <p className="text-muted-foreground leading-relaxed">
-                  {post.excerpt}
-                </p>
-
-                {/* Meta */}
-                <div className="flex items-center justify-between pt-2">
-                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                    <time>
-                      {new Date(post.date).toLocaleDateString('ko-KR')}
-                    </time>
-                    <span>•</span>
-                    <span>{post.readTime} 읽기</span>
+                
+                <div className="p-4 sm:p-6 flex flex-col space-y-3 flex-1 min-w-0">
+                  {/* Tags */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {post.tags.slice(0, 3).map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {post.tags.length > 3 && (
+                      <span className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+                        +{post.tags.length - 3}
+                      </span>
+                    )}
                   </div>
-                  <Link
-                    href={`/blog/${post.slug}`}
-                    className="text-sm font-medium text-primary hover:underline"
-                  >
-                    계속 읽기 →
-                  </Link>
+
+                  {/* Title */}
+                  <h2 className="text-lg sm:text-xl font-bold group-hover:text-primary transition-colors line-clamp-2">
+                    <Link href={`/blog/${post.slug}`}>
+                      {post.title}
+                    </Link>
+                  </h2>
+
+                  {/* Excerpt */}
+                  <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2">
+                    {post.excerpt}
+                  </p>
+
+                  {/* Meta */}
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+                      <time>
+                        {new Date(post.date).toLocaleDateString('ko-KR')}
+                      </time>
+                      <span>•</span>
+                      <span>{post.readTime} 읽기</span>
+                    </div>
+                    <Link
+                      href={`/blog/${post.slug}`}
+                      className="text-xs font-medium text-primary hover:underline flex-shrink-0"
+                    >
+                      계속 읽기 →
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          </article>
-        ))}
+            </article>
+          ))
+        )}
       </div>
 
-      {/* Load More */}
-      <div className="text-center mt-12">
-        <Button variant="outline" size="lg">
-          더 많은 포스트 보기
-        </Button>
-      </div>
+      {/* Pagination or Load More */}
+      {blogPosts.length > 0 && (
+        <div className="text-center mt-12">
+          <div className="flex flex-col items-center space-y-4">
+            <p className="text-sm text-muted-foreground">
+              총 {blogPosts.length}개의 포스트
+            </p>
+            {blogPosts.length >= 10 && (
+              <Button variant="outline" size="lg">
+                더 많은 포스트 보기
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

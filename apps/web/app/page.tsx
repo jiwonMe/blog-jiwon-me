@@ -99,23 +99,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Skills Section */}
-      <section className="py-12">
-        <h2 className="text-3xl font-bold text-center mb-8">주요 기술 스택</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            "React", "TypeScript", "Next.js", "Node.js",
-            "Tailwind CSS", "Prisma", "PostgreSQL", "Vercel"
-          ].map((skill) => (
-            <div
-              key={skill}
-              className="text-center p-4 rounded-lg border bg-card hover:shadow-sm transition-shadow"
-            >
-              <span className="font-medium">{skill}</span>
-            </div>
-          ))}
-        </div>
-      </section>
+
     </div>
   );
 }

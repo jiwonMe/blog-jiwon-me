@@ -8,9 +8,15 @@ export const notion = new Client({
 // Notion database ID for blog posts
 export const BLOG_DATABASE_ID = process.env.NOTION_BLOG_DATABASE_ID || '';
 
-// Helper function to get plain text from Notion rich text
+// Helper function to get plain text from Notion rich text with equation support
 export function getPlainText(richText: any[]): string {
-  return richText?.map((text) => text.plain_text).join('') || '';
+  return richText?.map((text) => {
+    if (text.type === 'equation') {
+      // Inline equation - wrap in $ for LaTeX
+      return `$${text.equation.expression}$`;
+    }
+    return text.plain_text;
+  }).join('') || '';
 }
 
 // Helper function to get date string from Notion date property

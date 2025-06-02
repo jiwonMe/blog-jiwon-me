@@ -140,14 +140,54 @@ function getPublished(page: PageObjectResponse): boolean {
   return false;
 }
 
+// Generate excerpt from content if not provided
+function generateExcerptFromContent(content: string, maxLength: number = 200): string {
+  // Remove markdown formatting and get plain text
+  const plainText = content
+    .replace(/#{1,6}\s+/g, '') // Remove headers
+    .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
+    .replace(/\*(.*?)\*/g, '$1') // Remove italic
+    .replace(/`(.*?)`/g, '$1') // Remove inline code
+    .replace(/```[\s\S]*?```/g, '') // Remove code blocks
+    .replace(/\$\$([\s\S]*?)\$\$/g, '') // Remove block equations
+    .replace(/\$(.*?)\$/g, '') // Remove inline equations
+    .replace(/!\[.*?\]\(.*?\)/g, '') // Remove images
+    .replace(/\[.*?\]\(.*?\)/g, '') // Remove links
+    .replace(/>\s+/g, '') // Remove quotes
+    .replace(/[-*+]\s+/g, '') // Remove list markers
+    .replace(/\d+\.\s+/g, '') // Remove numbered list markers
+    .replace(/\n+/g, ' ') // Replace newlines with spaces
+    .trim();
+
+  // Truncate to maxLength and add ellipsis if needed
+  if (plainText.length <= maxLength) {
+    return plainText;
+  }
+  
+  // Find the last complete word within the limit
+  const truncated = plainText.substring(0, maxLength);
+  const lastSpaceIndex = truncated.lastIndexOf(' ');
+  
+  if (lastSpaceIndex > 0) {
+    return truncated.substring(0, lastSpaceIndex) + '...';
+  }
+  
+  return truncated + '...';
+}
+
 // Convert Notion page to BlogPost
 async function notionPageToBlogPost(page: PageObjectResponse, content: string, firstImageUrl?: string): Promise<BlogPost> {
   const title = getTitle(page);
   const slug = getSlug(page);
-  const excerpt = getExcerpt(page);
+  let excerpt = getExcerpt(page);
   const date = getDate(page);
   const tags = getTagsFromPage(page);
   const published = getPublished(page);
+  
+  // If no excerpt is provided, generate one from content
+  if (!excerpt && content) {
+    excerpt = generateExcerptFromContent(content);
+  }
   
   // Thumbnail priority: 1. Cover image, 2. First image in content, 3. Auto-generated (optional)
   let thumbnail = getCoverImage(page.cover);
@@ -333,6 +373,10 @@ async function blockToMarkdown(block: any): Promise<string> {
         : block.image.file.url;
       const caption = block.image.caption ? getPlainText(block.image.caption) : '';
       return `![${caption}](${imageUrl})\n\n`;
+    
+    case 'equation':
+      // Block equation - wrap in $$ for LaTeX display mode
+      return `$$${block.equation.expression}$$\n\n`;
     
     default:
       // For unsupported blocks, try to extract text if available
