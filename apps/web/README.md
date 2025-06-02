@@ -20,6 +20,7 @@ Next.js와 Notion API를 활용한 개인 블로그 웹사이트입니다. Notio
 - **CDN 캐싱**: 강력한 HTTP 캐싱 헤더로 CDN 활용 극대화
 - **이미지 최적화**: Next.js Image 컴포넌트와 이미지 프록시를 통한 최적화
 - **캐시 무효화 API**: 수동 캐시 갱신을 위한 API 엔드포인트
+- **Notion 웹훅 연동**: 실시간 자동 캐시 무효화
 - **서버/클라이언트 컴포넌트 분리**: 최적의 렌더링 전략 적용
 
 ### 🎨 UI/UX
@@ -70,6 +71,9 @@ NOTION_BLOG_DATABASE_ID=your_blog_database_id
 # 필수: 캐시 무효화 시크릿 (랜덤한 문자열)
 REVALIDATE_SECRET=your_super_secret_revalidation_key
 
+# 웹훅 설정 (실시간 캐시 무효화용)
+NOTION_WEBHOOK_SECRET=your_webhook_secret_key
+
 # 선택사항: 성능 모니터링
 NEXT_PUBLIC_VERCEL_ANALYTICS_ID=your_vercel_analytics_id
 ```
@@ -95,7 +99,22 @@ yarn dev
 ## 🔧 주요 기능 사용법
 
 ### 캐시 무효화
-블로그 포스트를 업데이트한 후 캐시를 수동으로 갱신하려면:
+
+#### 자동 캐시 무효화 (권장)
+Notion 웹훅을 설정하면 블로그 포스트 변경 시 자동으로 캐시가 갱신됩니다:
+
+```bash
+# 웹훅 생성
+curl -X POST "https://yourdomain.com/api/webhook/manage?secret=YOUR_SECRET&baseUrl=https://yourdomain.com"
+
+# 웹훅 상태 확인
+curl "https://yourdomain.com/api/webhook/manage?secret=YOUR_SECRET"
+```
+
+자세한 설정 방법은 [WEBHOOK_SETUP.md](./WEBHOOK_SETUP.md)를 참조하세요.
+
+#### 수동 캐시 무효화
+필요시 수동으로 캐시를 갱신할 수 있습니다:
 
 ```bash
 # 전체 캐시 갱신

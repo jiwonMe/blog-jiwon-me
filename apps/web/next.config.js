@@ -70,6 +70,28 @@ const nextConfig = {
           },
         ],
       },
+      // 웹훅 엔드포인트 설정
+      {
+        source: '/api/webhook/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'POST, GET, DELETE, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type, notion-webhook-signature',
+          },
+        ],
+      },
     ];
   },
 };
