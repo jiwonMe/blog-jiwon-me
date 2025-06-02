@@ -8,8 +8,41 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./components/*": "./dist/components/*.js",
-    "./lib/*": "./dist/lib/*.js",
+    "./components/ui/button": {
+      "types": "./dist/components/ui/button.d.ts",
+      "import": "./dist/components/ui/button.js",
+      "require": "./dist/components/ui/button.cjs"
+    },
+    "./components/ui/card": {
+      "types": "./dist/components/ui/card.d.ts",
+      "import": "./dist/components/ui/card.js",
+      "require": "./dist/components/ui/card.cjs"
+    },
+    "./components/ui/command": {
+      "types": "./dist/components/ui/command.d.ts",
+      "import": "./dist/components/ui/command.js",
+      "require": "./dist/components/ui/command.cjs"
+    },
+    "./components/ui/dialog": {
+      "types": "./dist/components/ui/dialog.d.ts",
+      "import": "./dist/components/ui/dialog.js",
+      "require": "./dist/components/ui/dialog.cjs"
+    },
+    "./components/ui/input": {
+      "types": "./dist/components/ui/input.d.ts",
+      "import": "./dist/components/ui/input.js",
+      "require": "./dist/components/ui/input.cjs"
+    },
+    "./components/ui/skeleton": {
+      "types": "./dist/components/ui/skeleton.d.ts",
+      "import": "./dist/components/ui/skeleton.js",
+      "require": "./dist/components/ui/skeleton.cjs"
+    },
+    "./lib/utils": {
+      "types": "./dist/lib/utils.d.ts",
+      "import": "./dist/lib/utils.js",
+      "require": "./dist/lib/utils.cjs"
+    },
     "./globals.css": "./dist/globals.css"
   },
   "main": "./dist/index.cjs",
@@ -40,10 +73,12 @@
     "typescript": "5.8.2"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-slot": "^1.2.3",
     "@tailwindcss/cli": "^4.1.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "lucide-react": "^0.511.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
