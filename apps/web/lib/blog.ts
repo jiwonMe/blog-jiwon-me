@@ -7,7 +7,7 @@ import {
   calculateReadTime, 
   getCoverImage,
   getFileUrl,
-  richTextToMarkdown,
+
   processCells,
   getMentionContent,
   optimizeImageUrl,
@@ -229,7 +229,7 @@ async function notionPageToBlogPost(page: PageObjectResponse, content: string, f
   
   const readTime = calculateReadTime(content);
 
-  return {
+  const blogPost: BlogPost = {
     id: page.id,
     title,
     slug,
@@ -241,6 +241,36 @@ async function notionPageToBlogPost(page: PageObjectResponse, content: string, f
     coverImage: thumbnail || undefined,
     published,
   };
+
+  // Add debug information in development
+  if (process.env.NODE_ENV === 'development') {
+    (blogPost as any)._debug = {
+      notionPage: page,
+      rawContent: content,
+      firstImageUrl,
+      extractedData: {
+        title: getTitle(page),
+        slug: getSlug(page),
+        excerpt: getExcerpt(page),
+        date: getDate(page),
+        tags: getTagsFromPage(page),
+        published: getPublished(page),
+        coverImage: getCoverImage(page.cover),
+      },
+      contentStats: {
+        contentLength: content.length,
+        wordCount: content.split(/\s+/).length,
+        readTime,
+      },
+      timestamps: {
+        created: page.created_time,
+        lastEdited: page.last_edited_time,
+        processed: new Date().toISOString(),
+      }
+    };
+  }
+
+  return blogPost;
 }
 
 // Fetch all published blog posts (cached)
@@ -409,219 +439,459 @@ async function processChildren(blockId: string, indent: string = ''): Promise<st
   }
 }
 
+// Convert rich text to markdown with proper annotation support
+function richTextToMarkdownWithAnnotations(richTextArray: any[]): string {
+  if (!richTextArray || !Array.isArray(richTextArray)) {
+    return '';
+  }
+
+  return richTextArray.map(richText => {
+    if (!richText || typeof richText !== 'object') {
+      return '';
+    }
+
+    let text = '';
+    
+    // Extract text content based on type
+    if (richText.type === 'text') {
+      text = richText.text?.content || '';
+    } else if (richText.type === 'mention') {
+      text = getMentionContent(richText);
+    } else if (richText.type === 'equation') {
+      text = `$${richText.equation?.expression || ''}$`;
+    } else {
+      text = richText.plain_text || '';
+    }
+
+    // Apply annotations
+    const annotations = richText.annotations || {};
+    
+    if (annotations.bold) {
+      text = `**${text}**`;
+    }
+    if (annotations.italic) {
+      text = `*${text}*`;
+    }
+    if (annotations.strikethrough) {
+      text = `~~${text}~~`;
+    }
+    if (annotations.underline) {
+      text = `<u>${text}</u>`;
+    }
+    if (annotations.code) {
+      text = `\`${text}\``;
+    }
+    
+    // Handle colors
+    if (annotations.color && annotations.color !== 'default') {
+      const colorClass = `notion-${annotations.color}`;
+      text = `<span class="${colorClass}">${text}</span>`;
+    }
+
+    // Handle links
+    if (richText.href || (richText.text && richText.text.link)) {
+      const url = richText.href || richText.text.link.url;
+      text = `[${text}](${url})`;
+    }
+
+    return text;
+  }).join('');
+}
+
 // Convert Notion block to markdown with support for all block types
 async function blockToMarkdown(block: any, indent: string = ''): Promise<string> {
-  const { type } = block;
+  if (!block || !block.type) {
+    return '';
+  }
+
+  const { type, has_children } = block;
+  const blockData = block[type] || {};
   
-  switch (type) {
-    case 'paragraph':
-      return `${richTextToMarkdown(block.paragraph.rich_text)}\n\n`;
-    
-    case 'heading_1':
-      return `# ${richTextToMarkdown(block.heading_1.rich_text)}\n\n`;
-    
-    case 'heading_2':
-      return `## ${richTextToMarkdown(block.heading_2.rich_text)}\n\n`;
-    
-    case 'heading_3':
-      return `### ${richTextToMarkdown(block.heading_3.rich_text)}\n\n`;
-    
-    case 'bulleted_list_item':
-      let bulletContent = `${indent}- ${richTextToMarkdown(block.bulleted_list_item.rich_text)}\n`;
-      if (block.has_children) {
-        const childrenContent = await processChildren(block.id, indent + '  ');
-        bulletContent += childrenContent;
-      }
-      return bulletContent;
-    
-    case 'numbered_list_item':
-      let numberedContent = `${indent}1. ${richTextToMarkdown(block.numbered_list_item.rich_text)}\n`;
-      if (block.has_children) {
-        const childrenContent = await processChildren(block.id, indent + '   ');
-        numberedContent += childrenContent;
-      }
-      return numberedContent;
-    
-    case 'to_do':
-      const { text, checked } = getToDoData(block.to_do);
-      const checkbox = checked ? '[x]' : '[ ]';
-      let todoContent = `${indent}${checkbox} ${text}\n`;
-      if (block.has_children) {
-        const childrenContent = await processChildren(block.id, indent + '  ');
-        todoContent += childrenContent;
-      }
-      return todoContent;
-    
-    case 'toggle':
-      const { text: toggleText } = getToggleData(block.toggle);
-      let toggleContent = `${indent}<details>\n${indent}<summary>${toggleText}</summary>\n\n`;
-      if (block.has_children) {
-        const childrenContent = await processChildren(block.id, indent);
-        toggleContent += childrenContent;
-      }
-      toggleContent += `${indent}</details>\n\n`;
-      return toggleContent;
-    
-    case 'code':
-      const language = block.code.language || '';
-      const code = richTextToMarkdown(block.code.rich_text);
-      return `\`\`\`${language}\n${code}\n\`\`\`\n\n`;
-    
-    case 'quote':
-      return `> ${richTextToMarkdown(block.quote.rich_text)}\n\n`;
-    
-    case 'callout':
-      const { icon, text: calloutText } = getCalloutData(block.callout);
-      const iconDisplay = icon ? `${icon} ` : '';
-      return `> ${iconDisplay}${calloutText}\n\n`;
-    
-    case 'divider':
-      return '---\n\n';
-    
-    case 'image':
-      const imageUrl = optimizeImageUrl(getFileUrl(block.image) || '');
-      const caption = block.image.caption ? richTextToMarkdown(block.image.caption) : '';
-      return `![${caption}](${imageUrl})\n\n`;
-    
-    case 'video':
-      const videoUrl = getFileUrl(block.video) || '';
-      return `[Video](${videoUrl})\n\n`;
-    
-    case 'audio':
-      const audioUrl = getFileUrl(block.audio) || '';
-      return `[Audio](${audioUrl})\n\n`;
-    
-    case 'file':
-      const fileUrl = getFileUrl(block.file) || '';
-      const fileName = block.file.caption ? richTextToMarkdown(block.file.caption) : 'File';
-      return `[${fileName}](${fileUrl})\n\n`;
-    
-    case 'pdf':
-      const pdfUrl = getFileUrl(block.pdf) || '';
-      return `[PDF](${pdfUrl})\n\n`;
-    
-    case 'bookmark':
-      const { url: bookmarkUrl, caption: bookmarkCaption } = getBookmarkData(block.bookmark);
-      return `[${bookmarkCaption || 'Bookmark'}](${bookmarkUrl})\n\n`;
-    
-    case 'link_preview':
-      const { url: linkUrl } = getLinkPreviewData(block.link_preview);
-      return `[Link Preview](${linkUrl})\n\n`;
-    
-    case 'embed':
-      const embedUrl = getEmbedUrl(block.embed);
-      return `[Embed](${embedUrl})\n\n`;
-    
-    case 'equation':
-      // Block equation - wrap in $$ for LaTeX display mode
-      return `$$${block.equation.expression}$$\n\n`;
-    
-    case 'table':
-      const { tableWidth, hasColumnHeader } = getTableData(block.table);
-      // For tables, we need to get the table rows separately
-      try {
-        const tableResponse = await notion.blocks.children.list({
-          block_id: block.id,
-        });
+  // Debug logging in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`Processing block: ${type}`, {
+      id: block.id,
+      type,
+      has_children,
+      blockData: Object.keys(blockData),
+    });
+  }
+  
+  try {
+    switch (type) {
+      case 'paragraph':
+        const paragraphText = richTextToMarkdownWithAnnotations(blockData.rich_text || []);
+        let paragraphContent = `${paragraphText}\n\n`;
         
-        let tableMarkdown = '';
-        const rows = tableResponse.results.filter((row: any) => row.type === 'table_row');
-        
-                 if (rows.length > 0) {
-           // Process each row
-           rows.forEach((row: any, index: number) => {
-             const cells = processCells(row.table_row.cells);
-             
-             // Ensure cells don't contain pipe characters that would break table formatting
-             const safeCells = cells.map(cell => cell.replace(/\|/g, '\\|'));
-             
-             tableMarkdown += `| ${safeCells.join(' | ')} |\n`;
-             
-             // Add header separator after first row if it's a header
-             if (index === 0 && hasColumnHeader) {
-               const separator = safeCells.map(() => '---').join(' | ');
-               tableMarkdown += `| ${separator} |\n`;
-             }
-           });
-         }
-        
-        return `${tableMarkdown}\n`;
-      } catch (error) {
-        console.error('Error processing table:', error);
-        return `[Table with ${tableWidth} columns]\n\n`;
-      }
-    
-    case 'table_row':
-      // Table rows are handled by the table block
-      return '';
-    
-    case 'column_list':
-      // Column lists contain columns as children
-      let columnListContent = '\n';
-      if (block.has_children) {
-        columnListContent += await processChildren(block.id, indent);
-      }
-      return columnListContent + '\n';
-    
-    case 'column':
-      // Columns contain other blocks as children
-      let columnContent = `${indent}<!-- Column Start -->\n`;
-      if (block.has_children) {
-        columnContent += await processChildren(block.id, indent);
-      }
-      columnContent += `${indent}<!-- Column End -->\n`;
-      return columnContent;
-    
-    case 'child_page':
-      const pageTitle = richTextToMarkdown(block.child_page.title || []);
-      return `[${pageTitle}](notion://page/${block.id})\n\n`;
-    
-    case 'child_database':
-      const dbTitle = richTextToMarkdown(block.child_database.title || []);
-      return `[Database: ${dbTitle}](notion://database/${block.id})\n\n`;
-    
-    case 'table_of_contents':
-      return `[Table of Contents]\n\n`;
-    
-    case 'breadcrumb':
-      return `[Breadcrumb]\n\n`;
-    
-    case 'link_to_page':
-      const linkType = block.link_to_page.type;
-      const linkId = block.link_to_page[linkType];
-      return `[Link to ${linkType}](notion://${linkType}/${linkId})\n\n`;
-    
-    case 'synced_block':
-      const { syncedFrom } = getSyncedBlockData(block.synced_block);
-      if (syncedFrom) {
-        return `${indent}[Synced from: ${syncedFrom}]\n\n`;
-      } else {
-        // Original synced block - process children
-        let syncedContent = '';
-        if (block.has_children) {
-          syncedContent += await processChildren(block.id, indent);
+        if (has_children) {
+          const childrenContent = await processChildren(block.id, indent);
+          paragraphContent += childrenContent;
         }
-        return syncedContent;
-      }
-    
-    case 'template':
-      const templateText = richTextToMarkdown(block.template.rich_text || []);
-      return `[Template: ${templateText}]\n\n`;
-    
-    case 'mention':
-      const mentionContent = getMentionContent(block.mention);
-      return `${indent}${mentionContent}`;
-    
-    case 'unsupported':
-      return `${indent}[Unsupported block type]\n\n`;
-    
-    default:
-      // For any other block types, try to extract text if available
-      if (block[type] && block[type].rich_text) {
-        return `${indent}${richTextToMarkdown(block[type].rich_text)}\n\n`;
-      }
-      console.warn(`Unsupported block type: ${type}`);
-      return '';
+        return paragraphContent;
+      
+      case 'heading_1':
+        const h1Text = richTextToMarkdownWithAnnotations(blockData.rich_text || []);
+        const h1Color = blockData.color !== 'default' ? ` {.notion-${blockData.color}}` : '';
+        const h1Toggleable = blockData.is_toggleable ? '\n\n:::toggle-heading{level="1"}\n' : '';
+        
+        let h1Content = `# ${h1Text}${h1Color}\n\n`;
+        if (h1Toggleable) {
+          h1Content = `${h1Toggleable}${h1Content}`;
+        }
+        
+        if (has_children) {
+          const childrenContent = await processChildren(block.id, indent);
+          h1Content += childrenContent;
+          if (h1Toggleable) {
+            h1Content += ':::\n\n';
+          }
+        }
+        return h1Content;
+      
+      case 'heading_2':
+        const h2Text = richTextToMarkdownWithAnnotations(blockData.rich_text || []);
+        const h2Color = blockData.color !== 'default' ? ` {.notion-${blockData.color}}` : '';
+        const h2Toggleable = blockData.is_toggleable ? '\n\n:::toggle-heading{level="2"}\n' : '';
+        
+        let h2Content = `## ${h2Text}${h2Color}\n\n`;
+        if (h2Toggleable) {
+          h2Content = `${h2Toggleable}${h2Content}`;
+        }
+        
+        if (has_children) {
+          const childrenContent = await processChildren(block.id, indent);
+          h2Content += childrenContent;
+          if (h2Toggleable) {
+            h2Content += ':::\n\n';
+          }
+        }
+        return h2Content;
+      
+      case 'heading_3':
+        const h3Text = richTextToMarkdownWithAnnotations(blockData.rich_text || []);
+        const h3Color = blockData.color !== 'default' ? ` {.notion-${blockData.color}}` : '';
+        const h3Toggleable = blockData.is_toggleable ? '\n\n:::toggle-heading{level="3"}\n' : '';
+        
+        let h3Content = `### ${h3Text}${h3Color}\n\n`;
+        if (h3Toggleable) {
+          h3Content = `${h3Toggleable}${h3Content}`;
+        }
+        
+        if (has_children) {
+          const childrenContent = await processChildren(block.id, indent);
+          h3Content += childrenContent;
+          if (h3Toggleable) {
+            h3Content += ':::\n\n';
+          }
+        }
+        return h3Content;
+      
+      case 'bulleted_list_item':
+        const bulletText = richTextToMarkdownWithAnnotations(blockData.rich_text || []);
+        const bulletColor = blockData.color !== 'default' ? ` {.notion-${blockData.color}}` : '';
+        
+        let bulletContent = `${indent}- ${bulletText}${bulletColor}\n`;
+        if (has_children) {
+          const childrenContent = await processChildren(block.id, indent + '  ');
+          bulletContent += childrenContent;
+        }
+        return bulletContent;
+      
+      case 'numbered_list_item':
+        const numberedText = richTextToMarkdownWithAnnotations(blockData.rich_text || []);
+        const numberedColor = blockData.color !== 'default' ? ` {.notion-${blockData.color}}` : '';
+        
+        let numberedContent = `${indent}1. ${numberedText}${numberedColor}\n`;
+        if (has_children) {
+          const childrenContent = await processChildren(block.id, indent + '   ');
+          numberedContent += childrenContent;
+        }
+        return numberedContent;
+      
+      case 'to_do':
+        const todoText = richTextToMarkdownWithAnnotations(blockData.rich_text || []);
+        const todoChecked = blockData.checked || false;
+        const todoColor = blockData.color !== 'default' ? ` {.notion-${blockData.color}}` : '';
+        const checkbox = todoChecked ? '[x]' : '[ ]';
+        
+        let todoContent = `${indent}${checkbox} ${todoText}${todoColor}\n`;
+        if (has_children) {
+          const childrenContent = await processChildren(block.id, indent + '  ');
+          todoContent += childrenContent;
+        }
+        return todoContent;
+      
+      case 'toggle':
+        const toggleText = richTextToMarkdownWithAnnotations(blockData.rich_text || []);
+        const toggleColor = blockData.color !== 'default' ? ` {.notion-${blockData.color}}` : '';
+        
+        let toggleContent = `:::toggle{summary="${toggleText}"${toggleColor ? ` color="${blockData.color}"` : ''}}\n`;
+        if (has_children) {
+          const childrenContent = await processChildren(block.id, indent);
+          toggleContent += childrenContent;
+        }
+        toggleContent += ':::\n\n';
+        return toggleContent;
+      
+      case 'code':
+        const codeText = richTextToMarkdownWithAnnotations(blockData.rich_text || []);
+        const language = blockData.language || '';
+        const caption = blockData.caption ? richTextToMarkdownWithAnnotations(blockData.caption) : '';
+        
+        let codeContent = `\`\`\`${language}\n${codeText}\n\`\`\`\n`;
+        if (caption) {
+          codeContent += `*${caption}*\n`;
+        }
+        return codeContent + '\n';
+      
+      case 'quote':
+        const quoteText = richTextToMarkdownWithAnnotations(blockData.rich_text || []);
+        const quoteColor = blockData.color !== 'default' ? ` {.notion-${blockData.color}}` : '';
+        
+        let quoteContent = `> ${quoteText}${quoteColor}\n\n`;
+        if (has_children) {
+          const childrenContent = await processChildren(block.id, '> ');
+          quoteContent += childrenContent;
+        }
+        return quoteContent;
+      
+      case 'callout':
+        const calloutText = richTextToMarkdownWithAnnotations(blockData.rich_text || []);
+        const calloutIcon = blockData.icon?.emoji || blockData.icon?.external?.url || blockData.icon?.file?.url || '💡';
+        const calloutColor = blockData.color !== 'default' ? blockData.color : 'default';
+        
+        let calloutContent = `:::callout{icon="${calloutIcon}" color="${calloutColor}"}\n${calloutText}\n`;
+        if (has_children) {
+          const childrenContent = await processChildren(block.id, '');
+          calloutContent += childrenContent;
+        }
+        calloutContent += ':::\n\n';
+        return calloutContent;
+      
+      case 'divider':
+        return '---\n\n';
+      
+      case 'image':
+        const imageUrl = optimizeImageUrl(getFileUrl(blockData) || '');
+        const imageCaption = blockData.caption ? richTextToMarkdownWithAnnotations(blockData.caption) : '';
+        return `![${imageCaption}](${imageUrl})\n\n`;
+      
+      case 'video':
+        const videoUrl = getFileUrl(blockData) || '';
+        const videoCaption = blockData.caption ? richTextToMarkdownWithAnnotations(blockData.caption) : 'Video';
+        return `:::video{url="${videoUrl}" title="${videoCaption}"}\n:::\n\n`;
+      
+      case 'audio':
+        const audioUrl = getFileUrl(blockData) || '';
+        const audioCaption = blockData.caption ? richTextToMarkdownWithAnnotations(blockData.caption) : 'Audio';
+        return `:::audio{url="${audioUrl}" title="${audioCaption}"}\n:::\n\n`;
+      
+      case 'file':
+        const fileUrl = getFileUrl(blockData) || '';
+        const fileCaption = blockData.caption ? richTextToMarkdownWithAnnotations(blockData.caption) : 'File';
+        return `:::file{url="${fileUrl}" title="${fileCaption}"}\n:::\n\n`;
+      
+      case 'pdf':
+        const pdfUrl = getFileUrl(blockData) || '';
+        const pdfCaption = blockData.caption ? richTextToMarkdownWithAnnotations(blockData.caption) : 'PDF';
+        return `:::file{url="${pdfUrl}" title="${pdfCaption}"}\n:::\n\n`;
+      
+      case 'bookmark':
+        const bookmarkUrl = blockData.url || '';
+        const bookmarkCaption = blockData.caption ? richTextToMarkdownWithAnnotations(blockData.caption) : 'Bookmark';
+        return `[${bookmarkCaption}](${bookmarkUrl})\n\n`;
+      
+      case 'link_preview':
+        const linkPreviewUrl = blockData.url || '';
+        return `[Link Preview](${linkPreviewUrl})\n\n`;
+      
+      case 'embed':
+        const embedUrl = blockData.url || '';
+        const embedCaption = blockData.caption ? richTextToMarkdownWithAnnotations(blockData.caption) : '';
+        return `:::embed{url="${embedUrl}" caption="${embedCaption}"}\n:::\n\n`;
+      
+      case 'equation':
+        return `$$${blockData.expression || ''}$$\n\n`;
+      
+      case 'table':
+        const tableWidth = blockData.table_width || 0;
+        const hasColumnHeader = blockData.has_column_header || false;
+        const hasRowHeader = blockData.has_row_header || false;
+        
+        try {
+          const tableResponse = await notion.blocks.children.list({
+            block_id: block.id,
+          });
+          
+          let tableMarkdown = '';
+          const rows = tableResponse.results.filter((row: any) => row.type === 'table_row');
+          
+          // Debug logging for table processing
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Table processing:', {
+              tableWidth,
+              hasColumnHeader,
+              hasRowHeader,
+              rowsCount: rows.length,
+              blockId: block.id
+            });
+          }
+          
+          if (rows.length > 0) {
+            rows.forEach((row: any, rowIndex: number) => {
+              // Process each cell in the row
+              const cells: string[] = [];
+              
+              // Get actual number of cells from the row data, fallback to table_width
+              const actualCellCount = row.table_row?.cells?.length || tableWidth;
+              const cellCount = Math.max(actualCellCount, tableWidth);
+              
+              for (let cellIndex = 0; cellIndex < cellCount; cellIndex++) {
+                try {
+                  const cellData = row.table_row?.cells?.[cellIndex];
+                  if (cellData && Array.isArray(cellData)) {
+                    // Each cell is an array of rich text objects
+                    const cellContent = richTextToMarkdownWithAnnotations(cellData);
+                    // Escape pipe characters, handle empty cells, and preserve Korean text
+                    let safeCellContent = (cellContent || '').replace(/\|/g, '\\|').trim();
+                    
+                    // Ensure non-empty cells for proper table rendering
+                    if (!safeCellContent) {
+                      safeCellContent = ' '; // Use regular space for empty cells
+                    }
+                    
+                    // Debug logging for cell content
+                    if (process.env.NODE_ENV === 'development' && rowIndex < 3) {
+                      console.log(`Cell [${rowIndex}][${cellIndex}]:`, {
+                        original: cellData,
+                        processed: cellContent,
+                        safe: safeCellContent
+                      });
+                    }
+                    
+                    cells.push(safeCellContent);
+                  } else {
+                    // Empty cell
+                    cells.push(' ');
+                  }
+                } catch (cellError) {
+                  console.warn(`Error processing table cell [${rowIndex}][${cellIndex}]:`, cellError);
+                  cells.push(' ');
+                }
+              }
+              
+              // Create table row with proper spacing
+              tableMarkdown += `| ${cells.join(' | ')} |\n`;
+              
+              // Add header separator after first row if it has column headers
+              if (rowIndex === 0 && hasColumnHeader) {
+                const separators = cells.map((_: string, cellIndex: number) => {
+                  // Left align first column if it's a row header
+                  if (cellIndex === 0 && hasRowHeader) {
+                    return ':---';
+                  }
+                  // Left align for better Korean text readability
+                  return '---';
+                });
+                tableMarkdown += `| ${separators.join(' | ')} |\n`;
+              }
+            });
+          } else {
+            // Empty table fallback
+            const emptyCells = Array(tableWidth).fill(' ');
+            tableMarkdown = `| ${emptyCells.join(' | ')} |\n`;
+            if (hasColumnHeader) {
+              const separators = Array(tableWidth).fill('---');
+              tableMarkdown += `| ${separators.join(' | ')} |\n`;
+            }
+          }
+          
+          // Add extra newlines for proper markdown spacing
+          return `\n${tableMarkdown}\n`;
+        } catch (error) {
+          console.error('Error processing table:', error);
+          return `\n**[Table with ${tableWidth} columns${hasColumnHeader ? ' (with headers)' : ''}${hasRowHeader ? ' (with row headers)' : ''}]**\n\n`;
+        }
+      
+      case 'table_row':
+        // Table rows are handled by their parent table block
+        // This case should not be reached in normal processing
+        return '';
+      
+      case 'column_list':
+        let columnListContent = '\n:::columns\n';
+        if (has_children) {
+          columnListContent += await processChildren(block.id, '');
+        }
+        columnListContent += ':::\n\n';
+        return columnListContent;
+      
+      case 'column':
+        let columnContent = ':::column\n';
+        if (has_children) {
+          columnContent += await processChildren(block.id, '');
+        }
+        columnContent += ':::\n';
+        return columnContent;
+      
+      case 'child_page':
+        const pageTitle = blockData.title || 'Untitled';
+        return `[📄 ${pageTitle}](notion://page/${block.id})\n\n`;
+      
+      case 'child_database':
+        const dbTitle = blockData.title || 'Untitled Database';
+        return `[🗃️ ${dbTitle}](notion://database/${block.id})\n\n`;
+      
+      case 'table_of_contents':
+        const tocColor = blockData.color !== 'default' ? ` {.notion-${blockData.color}}` : '';
+        return `[📋 Table of Contents]${tocColor}\n\n`;
+      
+      case 'breadcrumb':
+        return `[🍞 Breadcrumb]\n\n`;
+      
+      case 'link_to_page':
+        const linkType = blockData.type;
+        const linkId = blockData[linkType];
+        return `[🔗 Link to ${linkType}](notion://${linkType}/${linkId})\n\n`;
+      
+      case 'synced_block':
+        const syncedFrom = blockData.synced_from;
+        if (syncedFrom) {
+          const syncedBlockId = syncedFrom.block_id;
+          return `[🔄 Synced from: ${syncedBlockId}]\n\n`;
+        } else {
+          // Original synced block - process children
+          let syncedContent = '';
+          if (has_children) {
+            syncedContent += await processChildren(block.id, indent);
+          }
+          return syncedContent;
+        }
+      
+      case 'template':
+        const templateText = richTextToMarkdownWithAnnotations(blockData.rich_text || []);
+        let templateContent = `:::template{title="${templateText}"}\n`;
+        if (has_children) {
+          templateContent += await processChildren(block.id, '');
+        }
+        templateContent += ':::\n\n';
+        return templateContent;
+      
+      case 'unsupported':
+        return `[❌ Unsupported block type]\n\n`;
+      
+      default:
+        // For any other block types, try to extract text if available
+        if (blockData.rich_text) {
+          const text = richTextToMarkdownWithAnnotations(blockData.rich_text);
+          return `${text}\n\n`;
+        }
+        console.warn(`Unsupported block type: ${type}`);
+        return `[⚠️ Unknown block type: ${type}]\n\n`;
+    }
+  } catch (error) {
+    console.error('Error processing block:', error);
+    return `[⚠️ Error processing block: ${type}]\n\n`;
   }
 }
 

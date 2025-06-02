@@ -12,6 +12,10 @@ export interface WebhookConfig {
   };
 }
 
+// Notion API 기본 설정
+const NOTION_API_BASE = 'https://api.notion.com/v1';
+const NOTION_VERSION = '2022-06-28';
+
 // 웹훅 생성 함수
 export async function createNotionWebhook(config: WebhookConfig) {
   try {
@@ -19,10 +23,18 @@ export async function createNotionWebhook(config: WebhookConfig) {
       throw new Error('NOTION_BLOG_DATABASE_ID is not configured');
     }
 
-    const response = await notion.request({
-      method: 'post',
-      path: 'webhooks',
-      body: {
+    if (!process.env.NOTION_TOKEN) {
+      throw new Error('NOTION_TOKEN is not configured');
+    }
+
+    const response = await fetch(`${NOTION_API_BASE}/webhooks`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.NOTION_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Notion-Version': NOTION_VERSION,
+      },
+      body: JSON.stringify({
         parent: {
           type: 'database_id',
           database_id: process.env.NOTION_BLOG_DATABASE_ID,
@@ -30,11 +42,18 @@ export async function createNotionWebhook(config: WebhookConfig) {
         url: config.url,
         event_types: config.event_types,
         filter: config.filter,
-      },
+      }),
     });
 
-    console.log('Webhook created successfully:', response);
-    return response;
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Notion API Error:', errorData);
+      throw new Error(`Notion API Error: ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+    console.log('Webhook created successfully:', data);
+    return data;
   } catch (error) {
     console.error('Failed to create webhook:', error);
     throw error;
@@ -44,13 +63,28 @@ export async function createNotionWebhook(config: WebhookConfig) {
 // 웹훅 목록 조회 함수
 export async function listNotionWebhooks() {
   try {
-    const response = await notion.request({
-      method: 'get',
-      path: 'webhooks',
+    if (!process.env.NOTION_TOKEN) {
+      throw new Error('NOTION_TOKEN is not configured');
+    }
+
+    const response = await fetch(`${NOTION_API_BASE}/webhooks`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${process.env.NOTION_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Notion-Version': NOTION_VERSION,
+      },
     });
 
-    console.log('Webhooks retrieved:', response);
-    return response;
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Notion API Error:', errorData);
+      throw new Error(`Notion API Error: ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+    console.log('Webhooks retrieved:', data);
+    return data;
   } catch (error) {
     console.error('Failed to list webhooks:', error);
     throw error;
@@ -60,13 +94,28 @@ export async function listNotionWebhooks() {
 // 웹훅 삭제 함수
 export async function deleteNotionWebhook(webhookId: string) {
   try {
-    const response = await notion.request({
-      method: 'delete',
-      path: `webhooks/${webhookId}`,
+    if (!process.env.NOTION_TOKEN) {
+      throw new Error('NOTION_TOKEN is not configured');
+    }
+
+    const response = await fetch(`${NOTION_API_BASE}/webhooks/${webhookId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${process.env.NOTION_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Notion-Version': NOTION_VERSION,
+      },
     });
 
-    console.log('Webhook deleted successfully:', response);
-    return response;
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Notion API Error:', errorData);
+      throw new Error(`Notion API Error: ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+    console.log('Webhook deleted successfully:', data);
+    return data;
   } catch (error) {
     console.error('Failed to delete webhook:', error);
     throw error;

@@ -122,3 +122,265 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Notion Content Styles */
+@layer components {
+  .notion-content {
+    /* Notion color styles for light mode */
+  }
+  
+  /* Notion Table Styles */
+  .notion-content table {
+    border-spacing: 0;
+    border-collapse: separate;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  }
+  
+  .notion-content table th:first-child,
+  .notion-content table td:first-child {
+    font-weight: 600;
+    background-color: rgb(249, 250, 251);
+  }
+  
+  .dark .notion-content table th:first-child,
+  .dark .notion-content table td:first-child {
+    background-color: rgb(31, 41, 55);
+  }
+  
+  /* Notion table row headers (first column) styling */
+  .notion-content table tbody tr td:first-child {
+    background-color: rgb(249, 250, 251);
+    font-weight: 600;
+    color: rgb(55, 65, 81);
+  }
+  
+  .dark .notion-content table tbody tr td:first-child {
+    background-color: rgb(31, 41, 55);
+    color: rgb(209, 213, 219);
+  }
+  
+  /* Hover effects for table rows */
+  .notion-content table tbody tr:hover td {
+    background-color: rgb(243, 244, 246);
+  }
+  
+  .dark .notion-content table tbody tr:hover td {
+    background-color: rgb(55, 65, 81);
+  }
+  
+  .notion-content table tbody tr:hover td:first-child {
+    background-color: rgb(229, 231, 235);
+  }
+  
+  .dark .notion-content table tbody tr:hover td:first-child {
+    background-color: rgb(75, 85, 99);
+  }
+  
+  /* Table cell content alignment */
+  .notion-content table th {
+    vertical-align: middle;
+  }
+  
+  .notion-content table td {
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  
+  /* Handle long content in table cells */
+  .notion-content table td {
+    word-wrap: break-word;
+    word-break: break-word;
+    max-width: 200px;
+  }
+  
+  /* Responsive table wrapper */
+  .notion-content .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 1.5rem 0;
+  }
+  
+  @media (max-width: 768px) {
+    .notion-content table {
+      font-size: 0.875rem;
+    }
+    
+    .notion-content table th,
+    .notion-content table td {
+      padding: 0.5rem;
+    }
+    
+    .notion-content table td {
+      max-width: 150px;
+    }
+  }
+  
+  .notion-content .notion-gray {
+    color: rgb(120, 119, 116);
+  }
+  
+  .notion-content .notion-brown {
+    color: rgb(159, 107, 83);
+  }
+  
+  .notion-content .notion-orange {
+    color: rgb(217, 115, 13);
+  }
+  
+  .notion-content .notion-yellow {
+    color: rgb(203, 145, 47);
+  }
+  
+  .notion-content .notion-green {
+    color: rgb(68, 131, 97);
+  }
+  
+  .notion-content .notion-blue {
+    color: rgb(51, 126, 169);
+  }
+  
+  .notion-content .notion-purple {
+    color: rgb(144, 101, 176);
+  }
+  
+  .notion-content .notion-pink {
+    color: rgb(193, 76, 138);
+  }
+  
+  .notion-content .notion-red {
+    color: rgb(212, 76, 71);
+  }
+  
+  /* Notion background colors for light mode */
+  .notion-content .notion-gray_background {
+    background-color: rgb(241, 241, 239);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+  }
+  
+  .notion-content .notion-brown_background {
+    background-color: rgb(244, 238, 238);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+  }
+  
+  .notion-content .notion-orange_background {
+    background-color: rgb(251, 236, 221);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+  }
+  
+  .notion-content .notion-yellow_background {
+    background-color: rgb(251, 243, 219);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+  }
+  
+  .notion-content .notion-green_background {
+    background-color: rgb(237, 243, 236);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+  }
+  
+  .notion-content .notion-blue_background {
+    background-color: rgb(231, 243, 248);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+  }
+  
+  .notion-content .notion-purple_background {
+    background-color: rgb(244, 240, 247);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+  }
+  
+  .notion-content .notion-pink_background {
+    background-color: rgb(249, 238, 243);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+  }
+  
+  .notion-content .notion-red_background {
+    background-color: rgb(253, 235, 236);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+  }
+}
+
+/* Dark mode Notion colors */
+@media (prefers-color-scheme: dark) {
+  .notion-content .notion-gray {
+    color: rgb(155, 154, 151);
+  }
+  
+  .notion-content .notion-brown {
+    color: rgb(187, 132, 108);
+  }
+  
+  .notion-content .notion-orange {
+    color: rgb(255, 163, 68);
+  }
+  
+  .notion-content .notion-yellow {
+    color: rgb(255, 220, 73);
+  }
+  
+  .notion-content .notion-green {
+    color: rgb(98, 185, 137);
+  }
+  
+  .notion-content .notion-blue {
+    color: rgb(78, 171, 230);
+  }
+  
+  .notion-content .notion-purple {
+    color: rgb(186, 143, 216);
+  }
+  
+  .notion-content .notion-pink {
+    color: rgb(249, 132, 188);
+  }
+  
+  .notion-content .notion-red {
+    color: rgb(255, 115, 105);
+  }
+  
+  /* Dark mode background colors */
+  .dark .notion-content .notion-gray_background {
+    background-color: rgb(64, 64, 64);
+  }
+  
+  .dark .notion-content .notion-brown_background {
+    background-color: rgb(93, 59, 35);
+  }
+  
+  .dark .notion-content .notion-orange_background {
+    background-color: rgb(125, 61, 20);
+  }
+  
+  .dark .notion-content .notion-yellow_background {
+    background-color: rgb(89, 74, 40);
+  }
+  
+  .dark .notion-content .notion-green_background {
+    background-color: rgb(28, 56, 41);
+  }
+  
+  .dark .notion-content .notion-blue_background {
+    background-color: rgb(24, 51, 71);
+  }
+  
+  .dark .notion-content .notion-purple_background {
+    background-color: rgb(60, 45, 73);
+  }
+  
+  .dark .notion-content .notion-pink_background {
+    background-color: rgb(69, 42, 58);
+  }
+  
+  .dark .notion-content .notion-red_background {
+    background-color: rgb(89, 44, 47);
+  }
+}
