@@ -1,4 +1,25 @@
-import { notion, BLOG_DATABASE_ID, getPlainText, getDateString, getTags, calculateReadTime, getCoverImage } from './notion';
+import { 
+  notion, 
+  BLOG_DATABASE_ID, 
+  getPlainText, 
+  getDateString, 
+  getTags, 
+  calculateReadTime, 
+  getCoverImage,
+  getFileUrl,
+  richTextToMarkdown,
+  processCells,
+  getMentionContent,
+  optimizeImageUrl,
+  getEmbedUrl,
+  getBookmarkData,
+  getLinkPreviewData,
+  getCalloutData,
+  getToggleData,
+  getToDoData,
+  getTableData,
+  getSyncedBlockData
+} from './notion';
 import { BlogPost, isPageObjectResponse } from '../types/blog';
 import { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints';
 import { getFallbackBlogPosts, getFallbackBlogPost, getFallbackTags } from './fallback-data';
@@ -67,18 +88,6 @@ function getColorFromTag(tag: string): string {
   return colors[tag as keyof typeof colors] || '4F46E5'; // Default purple
 }
 
-// Optimize image URL for Next.js Image component
-function optimizeImageUrl(url: string): string {
-  if (!url) return url;
-  
-  // For Notion file URLs, we'll proxy them through our API to avoid CORS issues
-  if (url.includes('notion.so') || url.includes('amazonaws.com')) {
-    return `/api/image-proxy?url=${encodeURIComponent(url)}`;
-  }
-  
-  return url;
-}
-
 // Extract first image URL from content blocks (cached)
 const extractFirstImage = unstable_cache(
   async (pageId: string): Promise<string | null> => {
@@ -90,13 +99,7 @@ const extractFirstImage = unstable_cache(
       for (const block of response.results) {
         if ('type' in block && block.type === 'image') {
           const imageBlock = block as any;
-          let imageUrl = '';
-          if (imageBlock.image.type === 'external') {
-            imageUrl = imageBlock.image.external.url;
-          } else if (imageBlock.image.type === 'file') {
-            imageUrl = imageBlock.image.file.url;
-          }
-          
+          const imageUrl = getFileUrl(imageBlock.image);
           return imageUrl ? optimizeImageUrl(imageUrl) : null;
         }
       }
@@ -363,7 +366,14 @@ export const getPageContent = unstable_cache(
       let content = '';
       
       for (const block of response.results) {
-        content += await blockToMarkdown(block);
+        try {
+          content += await blockToMarkdown(block);
+        } catch (blockError) {
+          console.error(`Error processing block ${block.id}:`, blockError);
+          // Continue with other blocks even if one fails
+          const blockType = 'type' in block ? block.type : 'unknown';
+          content += `[Error processing block: ${blockType}]\n\n`;
+        }
       }
 
       return content;
@@ -379,57 +389,238 @@ export const getPageContent = unstable_cache(
   }
 );
 
-// Convert Notion block to markdown
-async function blockToMarkdown(block: any): Promise<string> {
+// Process nested children blocks
+async function processChildren(blockId: string, indent: string = ''): Promise<string> {
+  try {
+    const response = await notion.blocks.children.list({
+      block_id: blockId,
+    });
+
+    let content = '';
+    for (const child of response.results) {
+      const childContent = await blockToMarkdown(child, indent);
+      content += childContent;
+    }
+    
+    return content;
+  } catch (error) {
+    console.error('Error processing children blocks:', error);
+    return '';
+  }
+}
+
+// Convert Notion block to markdown with support for all block types
+async function blockToMarkdown(block: any, indent: string = ''): Promise<string> {
   const { type } = block;
   
   switch (type) {
     case 'paragraph':
-      return `${getPlainText(block.paragraph.rich_text)}\n\n`;
+      return `${richTextToMarkdown(block.paragraph.rich_text)}\n\n`;
     
     case 'heading_1':
-      return `# ${getPlainText(block.heading_1.rich_text)}\n\n`;
+      return `# ${richTextToMarkdown(block.heading_1.rich_text)}\n\n`;
     
     case 'heading_2':
-      return `## ${getPlainText(block.heading_2.rich_text)}\n\n`;
+      return `## ${richTextToMarkdown(block.heading_2.rich_text)}\n\n`;
     
     case 'heading_3':
-      return `### ${getPlainText(block.heading_3.rich_text)}\n\n`;
+      return `### ${richTextToMarkdown(block.heading_3.rich_text)}\n\n`;
     
     case 'bulleted_list_item':
-      return `- ${getPlainText(block.bulleted_list_item.rich_text)}\n`;
+      let bulletContent = `${indent}- ${richTextToMarkdown(block.bulleted_list_item.rich_text)}\n`;
+      if (block.has_children) {
+        const childrenContent = await processChildren(block.id, indent + '  ');
+        bulletContent += childrenContent;
+      }
+      return bulletContent;
     
     case 'numbered_list_item':
-      return `1. ${getPlainText(block.numbered_list_item.rich_text)}\n`;
+      let numberedContent = `${indent}1. ${richTextToMarkdown(block.numbered_list_item.rich_text)}\n`;
+      if (block.has_children) {
+        const childrenContent = await processChildren(block.id, indent + '   ');
+        numberedContent += childrenContent;
+      }
+      return numberedContent;
+    
+    case 'to_do':
+      const { text, checked } = getToDoData(block.to_do);
+      const checkbox = checked ? '[x]' : '[ ]';
+      let todoContent = `${indent}${checkbox} ${text}\n`;
+      if (block.has_children) {
+        const childrenContent = await processChildren(block.id, indent + '  ');
+        todoContent += childrenContent;
+      }
+      return todoContent;
+    
+    case 'toggle':
+      const { text: toggleText } = getToggleData(block.toggle);
+      let toggleContent = `${indent}<details>\n${indent}<summary>${toggleText}</summary>\n\n`;
+      if (block.has_children) {
+        const childrenContent = await processChildren(block.id, indent);
+        toggleContent += childrenContent;
+      }
+      toggleContent += `${indent}</details>\n\n`;
+      return toggleContent;
     
     case 'code':
       const language = block.code.language || '';
-      const code = getPlainText(block.code.rich_text);
+      const code = richTextToMarkdown(block.code.rich_text);
       return `\`\`\`${language}\n${code}\n\`\`\`\n\n`;
     
     case 'quote':
-      return `> ${getPlainText(block.quote.rich_text)}\n\n`;
+      return `> ${richTextToMarkdown(block.quote.rich_text)}\n\n`;
+    
+    case 'callout':
+      const { icon, text: calloutText } = getCalloutData(block.callout);
+      const iconDisplay = icon ? `${icon} ` : '';
+      return `> ${iconDisplay}${calloutText}\n\n`;
     
     case 'divider':
       return '---\n\n';
     
     case 'image':
-      let imageUrl = block.image.type === 'external' 
-        ? block.image.external.url 
-        : block.image.file.url;
-      imageUrl = optimizeImageUrl(imageUrl);
-      const caption = block.image.caption ? getPlainText(block.image.caption) : '';
+      const imageUrl = optimizeImageUrl(getFileUrl(block.image) || '');
+      const caption = block.image.caption ? richTextToMarkdown(block.image.caption) : '';
       return `![${caption}](${imageUrl})\n\n`;
+    
+    case 'video':
+      const videoUrl = getFileUrl(block.video) || '';
+      return `[Video](${videoUrl})\n\n`;
+    
+    case 'audio':
+      const audioUrl = getFileUrl(block.audio) || '';
+      return `[Audio](${audioUrl})\n\n`;
+    
+    case 'file':
+      const fileUrl = getFileUrl(block.file) || '';
+      const fileName = block.file.caption ? richTextToMarkdown(block.file.caption) : 'File';
+      return `[${fileName}](${fileUrl})\n\n`;
+    
+    case 'pdf':
+      const pdfUrl = getFileUrl(block.pdf) || '';
+      return `[PDF](${pdfUrl})\n\n`;
+    
+    case 'bookmark':
+      const { url: bookmarkUrl, caption: bookmarkCaption } = getBookmarkData(block.bookmark);
+      return `[${bookmarkCaption || 'Bookmark'}](${bookmarkUrl})\n\n`;
+    
+    case 'link_preview':
+      const { url: linkUrl } = getLinkPreviewData(block.link_preview);
+      return `[Link Preview](${linkUrl})\n\n`;
+    
+    case 'embed':
+      const embedUrl = getEmbedUrl(block.embed);
+      return `[Embed](${embedUrl})\n\n`;
     
     case 'equation':
       // Block equation - wrap in $$ for LaTeX display mode
       return `$$${block.equation.expression}$$\n\n`;
     
-    default:
-      // For unsupported blocks, try to extract text if available
-      if (block[type] && block[type].rich_text) {
-        return `${getPlainText(block[type].rich_text)}\n\n`;
+    case 'table':
+      const { tableWidth, hasColumnHeader } = getTableData(block.table);
+      // For tables, we need to get the table rows separately
+      try {
+        const tableResponse = await notion.blocks.children.list({
+          block_id: block.id,
+        });
+        
+        let tableMarkdown = '';
+        const rows = tableResponse.results.filter((row: any) => row.type === 'table_row');
+        
+                 if (rows.length > 0) {
+           // Process each row
+           rows.forEach((row: any, index: number) => {
+             const cells = processCells(row.table_row.cells);
+             
+             // Ensure cells don't contain pipe characters that would break table formatting
+             const safeCells = cells.map(cell => cell.replace(/\|/g, '\\|'));
+             
+             tableMarkdown += `| ${safeCells.join(' | ')} |\n`;
+             
+             // Add header separator after first row if it's a header
+             if (index === 0 && hasColumnHeader) {
+               const separator = safeCells.map(() => '---').join(' | ');
+               tableMarkdown += `| ${separator} |\n`;
+             }
+           });
+         }
+        
+        return `${tableMarkdown}\n`;
+      } catch (error) {
+        console.error('Error processing table:', error);
+        return `[Table with ${tableWidth} columns]\n\n`;
       }
+    
+    case 'table_row':
+      // Table rows are handled by the table block
+      return '';
+    
+    case 'column_list':
+      // Column lists contain columns as children
+      let columnListContent = '\n';
+      if (block.has_children) {
+        columnListContent += await processChildren(block.id, indent);
+      }
+      return columnListContent + '\n';
+    
+    case 'column':
+      // Columns contain other blocks as children
+      let columnContent = `${indent}<!-- Column Start -->\n`;
+      if (block.has_children) {
+        columnContent += await processChildren(block.id, indent);
+      }
+      columnContent += `${indent}<!-- Column End -->\n`;
+      return columnContent;
+    
+    case 'child_page':
+      const pageTitle = richTextToMarkdown(block.child_page.title || []);
+      return `[${pageTitle}](notion://page/${block.id})\n\n`;
+    
+    case 'child_database':
+      const dbTitle = richTextToMarkdown(block.child_database.title || []);
+      return `[Database: ${dbTitle}](notion://database/${block.id})\n\n`;
+    
+    case 'table_of_contents':
+      return `[Table of Contents]\n\n`;
+    
+    case 'breadcrumb':
+      return `[Breadcrumb]\n\n`;
+    
+    case 'link_to_page':
+      const linkType = block.link_to_page.type;
+      const linkId = block.link_to_page[linkType];
+      return `[Link to ${linkType}](notion://${linkType}/${linkId})\n\n`;
+    
+    case 'synced_block':
+      const { syncedFrom } = getSyncedBlockData(block.synced_block);
+      if (syncedFrom) {
+        return `${indent}[Synced from: ${syncedFrom}]\n\n`;
+      } else {
+        // Original synced block - process children
+        let syncedContent = '';
+        if (block.has_children) {
+          syncedContent += await processChildren(block.id, indent);
+        }
+        return syncedContent;
+      }
+    
+    case 'template':
+      const templateText = richTextToMarkdown(block.template.rich_text || []);
+      return `[Template: ${templateText}]\n\n`;
+    
+    case 'mention':
+      const mentionContent = getMentionContent(block.mention);
+      return `${indent}${mentionContent}`;
+    
+    case 'unsupported':
+      return `${indent}[Unsupported block type]\n\n`;
+    
+    default:
+      // For any other block types, try to extract text if available
+      if (block[type] && block[type].rich_text) {
+        return `${indent}${richTextToMarkdown(block[type].rich_text)}\n\n`;
+      }
+      console.warn(`Unsupported block type: ${type}`);
       return '';
   }
 }

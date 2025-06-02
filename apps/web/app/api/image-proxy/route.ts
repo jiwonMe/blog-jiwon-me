@@ -1,23 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const imageUrl = searchParams.get('url');
+
+  if (!imageUrl) {
+    return new NextResponse('Missing URL parameter', { status: 400 });
+  }
+
   try {
-    const { searchParams } = new URL(request.url);
-    const imageUrl = searchParams.get('url');
+    // Validate that the URL is from Notion or AWS (for security)
+    const url = new URL(imageUrl);
+    const allowedHosts = [
+      'notion.so',
+      's3.us-west-2.amazonaws.com',
+      'prod-files-secure.s3.us-west-2.amazonaws.com',
+      'images.unsplash.com', // Notion sometimes uses Unsplash
+    ];
 
-    if (!imageUrl) {
-      return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
-    }
+    const isAllowed = allowedHosts.some(host => 
+      url.hostname === host || url.hostname.endsWith(`.${host}`)
+    );
 
-    // URL 검증 (보안상 Notion과 AWS만 허용)
-    const allowedDomains = ['notion.so', 'amazonaws.com', 's3.us-west-2.amazonaws.com'];
-    const isAllowed = allowedDomains.some(domain => imageUrl.includes(domain));
-    
     if (!isAllowed) {
-      return NextResponse.json({ error: 'Domain not allowed' }, { status: 403 });
+      return new NextResponse('Unauthorized URL', { status: 403 });
     }
 
-    // 이미지 페치
+    // Fetch the image
     const response = await fetch(imageUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; Blog Image Proxy)',
@@ -25,30 +34,23 @@ export async function GET(request: NextRequest) {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status}`);
+      return new NextResponse('Failed to fetch image', { status: response.status });
     }
 
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    // Get the image data
     const imageBuffer = await response.arrayBuffer();
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
 
-    // 응답 생성
-    const proxyResponse = new NextResponse(imageBuffer, {
-      status: 200,
+    // Return the image with appropriate headers
+    return new NextResponse(imageBuffer, {
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, s-maxage=31536000, immutable', // 1년 캐싱
+        'Cache-Control': 'public, max-age=31536000, immutable', // Cache for 1 year
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET',
-        'Content-Length': imageBuffer.byteLength.toString(),
       },
     });
-
-    return proxyResponse;
   } catch (error) {
-    console.error('Image proxy error:', error);
-    return NextResponse.json(
-      { error: 'Failed to proxy image' },
-      { status: 500 }
-    );
+    console.error('Error proxying image:', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
   }
 } 
