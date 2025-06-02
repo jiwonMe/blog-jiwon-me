@@ -30,6 +30,48 @@ const nextConfig = {
       static: 180, // 3 minutes for static pages
     },
   },
+  async headers() {
+    return [
+      // API 라우트 캐싱
+      {
+        source: '/api/blog',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=1800, stale-while-revalidate=3600',
+          },
+        ],
+      },
+      // 정적 자산 캐싱
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+        ],
+      },
+      // 이미지 프록시 캐싱
+      {
+        source: '/api/image-proxy',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=31536000, immutable', // 1년 캐싱
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

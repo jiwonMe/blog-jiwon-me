@@ -292,7 +292,7 @@ export const getBlogPosts = unstable_cache(
   },
   ['blog-posts'],
   {
-    revalidate: 1800, // Cache for 30 minutes
+    revalidate: 3600, // 1시간으로 연장 (30분 → 1시간)
     tags: ['notion-blog', 'blog-posts']
   }
 );
@@ -347,7 +347,7 @@ export const getBlogPost = unstable_cache(
   },
   ['blog-post'],
   {
-    revalidate: 3600, // Cache for 1 hour
+    revalidate: 7200, // 2시간으로 연장 (1시간 → 2시간)
     tags: ['notion-blog']
   }
 );
@@ -374,7 +374,7 @@ export const getPageContent = unstable_cache(
   },
   ['page-content'],
   {
-    revalidate: 3600, // Cache for 1 hour
+    revalidate: 7200, // 2시간으로 연장 (1시간 → 2시간)
     tags: ['notion-content']
   }
 );
@@ -452,7 +452,7 @@ export const getAllTags = unstable_cache(
   },
   ['all-tags'],
   {
-    revalidate: 1800, // Cache for 30 minutes
+    revalidate: 3600, // 1시간으로 연장 (30분 → 1시간)
     tags: ['notion-blog', 'blog-tags']
   }
 ); 
