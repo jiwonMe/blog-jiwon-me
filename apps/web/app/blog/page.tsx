@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@jiwonme/jds";
 import { getBlogPosts, getAllTags } from "../../lib/blog";
+import { BlogPost } from "../../types/blog";
 import { DebugPanel } from "../../components/debug-panel";
 
 // 정적 생성 설정 - 1시간마다 재생성
@@ -32,7 +33,7 @@ export default async function BlogPage({
 
   // Filter posts by tag if specified
   const posts = tag 
-    ? allPosts.filter(post => post.tags.includes(tag))
+    ? allPosts.filter((post: BlogPost) => post.tags.includes(tag))
     : allPosts;
 
   return (
@@ -62,7 +63,7 @@ export default async function BlogPage({
                     전체
                   </Button>
                 </Link>
-                {allTags.map((tagName) => (
+                {allTags.map((tagName: string) => (
                   <Link key={tagName} href={`/blog?tag=${encodeURIComponent(tagName)}`}>
                     <Button 
                       variant={tag === tagName ? "default" : "outline"} 
@@ -89,7 +90,7 @@ export default async function BlogPage({
           {/* Blog Posts Grid */}
           {posts.length > 0 ? (
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {posts.map((post) => (
+              {posts.map((post: BlogPost) => (
                 <article
                   key={post.id}
                   className="group bg-card rounded-xl border border-border overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
@@ -110,7 +111,7 @@ export default async function BlogPage({
                     {/* Tags */}
                     {post.tags.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-3">
-                        {post.tags.slice(0, 3).map((tagName) => (
+                        {post.tags.slice(0, 3).map((tagName: string) => (
                           <Link
                             key={tagName}
                             href={`/blog?tag=${encodeURIComponent(tagName)}`}

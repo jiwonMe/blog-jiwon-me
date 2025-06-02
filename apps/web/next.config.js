@@ -22,6 +22,10 @@ const nextConfig = {
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    // 이미지 최적화 설정 강화
+    minimumCacheTTL: 31536000, // 1년
+    dangerouslyAllowSVG: false,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   experimental: {
     // Enable experimental features for better caching
@@ -60,13 +64,21 @@ const nextConfig = {
           },
         ],
       },
-      // 이미지 프록시 캐싱
+      // 이미지 프록시 캐싱 강화
       {
         source: '/api/image-proxy',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, s-maxage=31536000, immutable', // 1년 캐싱
+            value: 'public, s-maxage=31536000, max-age=31536000, immutable, stale-while-revalidate=86400',
+          },
+          {
+            key: 'CDN-Cache-Control',
+            value: 'public, s-maxage=31536000, immutable',
+          },
+          {
+            key: 'Vercel-CDN-Cache-Control',
+            value: 'public, s-maxage=31536000, immutable',
           },
         ],
       },

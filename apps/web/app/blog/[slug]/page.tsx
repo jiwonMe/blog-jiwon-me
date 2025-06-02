@@ -49,7 +49,7 @@ export default async function BlogPostPage({ params }: PageProps) {
             {/* Tags */}
             {post.tags && post.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-6">
-                {post.tags.map((tag) => (
+                {post.tags.map((tag: string) => (
                   <Link
                     key={tag}
                     href={`/blog?tag=${encodeURIComponent(tag)}`}
@@ -126,7 +126,7 @@ export default async function BlogPostPage({ params }: PageProps) {
               {post.tags && post.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   <span className="text-sm text-muted-foreground font-wanted mr-2">태그:</span>
-                  {post.tags.map((tag) => (
+                  {post.tags.map((tag: string) => (
                     <Link
                       key={tag}
                       href={`/blog?tag=${encodeURIComponent(tag)}`}

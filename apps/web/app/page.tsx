@@ -2,6 +2,7 @@ import { Button } from "@jiwonme/jds";
 import Link from "next/link";
 import Image from "next/image";
 import { getBlogPosts } from "../lib/blog";
+import { BlogPost } from "../types/blog";
 import { ThumbnailPlaceholder } from "../components/thumbnail-placeholder";
 
 export default async function Home() {
@@ -39,7 +40,7 @@ export default async function Home() {
         </div>
         
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {recentPosts.map((post) => (
+          {recentPosts.map((post: BlogPost) => (
             <article
               key={post.id}
               className="group rounded-lg border overflow-hidden hover:shadow-md transition-shadow"
@@ -54,6 +55,10 @@ export default async function Home() {
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      priority={false}
+                      placeholder="blur"
+                      blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+                      loading="lazy"
                     />
                   ) : (
                     <ThumbnailPlaceholder 
@@ -67,7 +72,7 @@ export default async function Home() {
                 
                 <div className="p-6 flex flex-col space-y-3">
                   <div className="flex flex-wrap gap-2">
-                    {post.tags.map((tag) => (
+                    {post.tags.map((tag: string) => (
                       <span
                         key={tag}
                         className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground"

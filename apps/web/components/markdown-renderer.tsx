@@ -830,10 +830,10 @@ const components: Components = {
       };
       
       return (
-        <div className={`my-4 p-4 border-l-4 rounded-r-lg ${getCalloutTheme(emoji)}`}>
-          <div className="flex items-start space-x-3">
+        <span className={`block my-4 p-4 border-l-4 rounded-r-lg ${getCalloutTheme(emoji)}`}>
+          <span className="flex items-start space-x-3">
             <span className="text-xl flex-shrink-0">{emoji}</span>
-            <div className={`flex-1 text-gray-700 dark:text-gray-300 font-wanted ${colorClass}`}>
+            <span className={`flex-1 text-gray-700 dark:text-gray-300 font-wanted ${colorClass}`}>
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]} 
                 components={{
@@ -845,9 +845,9 @@ const components: Components = {
               >
                 {text || ''}
               </ReactMarkdown>
-            </div>
-          </div>
-        </div>
+            </span>
+          </span>
+        </span>
       );
     }
     
@@ -876,29 +876,27 @@ const components: Components = {
   
   // 이미지 스타일링 (Notion 이미지 지원)
   img: ({ src, alt, ...props }) => (
-    <div className="my-6">
+    <>
       <img 
         src={src}
         alt={alt || ''}
-        className="max-w-full h-auto rounded-lg shadow-md mx-auto"
+        className="max-w-full h-auto rounded-lg shadow-md mx-auto block my-6"
         loading="lazy"
         {...props}
       />
       {alt && (
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-2 italic font-wanted">
+        <span className="block text-center text-sm text-gray-500 dark:text-gray-400 mt-2 italic font-wanted">
           {alt}
-        </p>
+        </span>
       )}
-    </div>
+    </>
   ),
   
   // 테이블 스타일링
   table: ({ children, ...props }) => (
-    <div className="overflow-x-auto my-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-      <table className="min-w-full border-collapse bg-white dark:bg-gray-900 table-auto" {...props}>
-        {children}
-      </table>
-    </div>
+    <table className="min-w-full border-collapse bg-white dark:bg-gray-900 table-auto my-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden" {...props}>
+      {children}
+    </table>
   ),
   
   thead: ({ children, ...props }) => (
