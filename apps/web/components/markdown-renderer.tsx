@@ -467,6 +467,21 @@ function preprocessContent(content: string): string {
   // underline 태그를 마크다운으로 변환
   processed = processed.replace(/<u>(.*?)<\/u>/g, '<span style="text-decoration: underline;" class="notion-underline">$1</span>');
   
+  // 할 일 목록 처리 (Notion 스타일을 GFM 스타일로 변환)
+  processed = processed.replace(/^(\s*)\[ \] /gm, '$1- [ ] ');
+  processed = processed.replace(/^(\s*)\[x\] /gm, '$1- [x] ');
+  
+  // 표 구조 수정 (헤더 구분선이 없는 경우 추가)
+  processed = processed.replace(
+    /(\| .+ \|)\n(\| .+ \|)(?!\n\| [-:])/gm,
+    (match, firstRow, secondRow) => {
+      // 첫 번째 행의 열 개수 계산
+      const columnCount = (firstRow.match(/\|/g) || []).length - 1;
+      const separator = '| ' + Array(columnCount).fill('---').join(' | ') + ' |';
+      return `${firstRow}\n${separator}\n${secondRow}`;
+    }
+  );
+  
   return processed;
 }
 
@@ -630,7 +645,16 @@ const components: Components = {
         return (
           <ToggleBlock summary={summary || ''} color={color}>
             <div className="prose prose-sm max-w-none">
-              <ReactMarkdown>{content || ''}</ReactMarkdown>
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]} 
+                components={{
+                  p: ({ children }) => <p className="mb-2">{children}</p>,
+                  ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
+                  li: ({ children }) => <li className="ml-2">{children}</li>,
+                }}
+              >
+                {content || ''}
+              </ReactMarkdown>
             </div>
           </ToggleBlock>
         );
@@ -642,16 +666,29 @@ const components: Components = {
        const columnsMatch = childrenString.match(/:::columns\s*([\s\S]*?)\s*:::/);
        if (columnsMatch) {
          const [, content] = columnsMatch;
-         const columns = (content || '').split(/:::column\s*([\s\S]*?)\s*:::/g).filter(Boolean);
-         return (
-           <ColumnsLayout>
-             {columns.map((columnContent, index) => (
-               <ColumnBlock key={index}>
-                 <ReactMarkdown>{columnContent}</ReactMarkdown>
-               </ColumnBlock>
-             ))}
-           </ColumnsLayout>
-         );
+         // 컬럼 내용을 더 정확하게 파싱
+         const columnMatches = (content || '').match(/:::column\s*([\s\S]*?)(?=:::column|$)/g);
+         if (columnMatches) {
+           const columns = columnMatches.map(match => 
+             match.replace(/^:::column\s*/, '').trim()
+           );
+           return (
+             <ColumnsLayout>
+               {columns.map((columnContent, index) => (
+                 <ColumnBlock key={index}>
+                   <ReactMarkdown 
+                     remarkPlugins={[remarkGfm]}
+                     components={{
+                       p: ({ children }) => <p className="mb-2">{children}</p>,
+                     }}
+                   >
+                     {columnContent}
+                   </ReactMarkdown>
+                 </ColumnBlock>
+               ))}
+             </ColumnsLayout>
+           );
+         }
        }
      }
     
@@ -746,6 +783,24 @@ const components: Components = {
   
   li: ({ children, className, ...props }) => {
     const colorClass = className ? notionColors[className as keyof typeof notionColors] : '';
+    
+    // 체크박스가 있는 리스트 아이템인지 확인
+    const childrenString = String(children);
+    const hasCheckbox = childrenString.includes('type="checkbox"') || 
+                       React.Children.toArray(children).some(child => 
+                         React.isValidElement(child) && 
+                         child.type === 'input' && 
+                         (child.props as any)?.type === 'checkbox'
+                       );
+    
+    if (hasCheckbox) {
+      return (
+        <li className={`ml-4 font-wanted flex items-start space-x-2 ${colorClass}`} {...props}>
+          {children}
+        </li>
+      );
+    }
+    
     return (
       <li className={`ml-4 font-wanted ${colorClass}`} {...props}>
         {children}
@@ -925,7 +980,7 @@ const components: Components = {
           type="checkbox"
           checked={checked}
           disabled={disabled}
-          className="mr-2 accent-blue-600"
+          className="mr-2 accent-blue-600 scale-110"
           readOnly
           {...props}
         />
