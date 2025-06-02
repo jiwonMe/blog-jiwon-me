@@ -7,7 +7,7 @@ import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
 import { Components } from 'react-markdown';
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 // KaTeX CSS 스타일 임포트
 import 'katex/dist/katex.min.css';
@@ -309,6 +309,63 @@ function TemplateBlock({ title, children }: { title: string; children: React.Rea
   );
 }
 
+// Table of Contents 컴포넌트
+function TableOfContentsBlock({ color }: { color?: string }) {
+  const [headings, setHeadings] = useState<Array<{ id: string; text: string; level: number }>>([]);
+
+  React.useEffect(() => {
+    // Extract headings from the current page
+    const headingElements = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    const extractedHeadings = Array.from(headingElements).map((heading, index) => {
+      const id = heading.id || `heading-${index}`;
+      if (!heading.id) {
+        heading.id = id;
+      }
+      return {
+        id,
+        text: heading.textContent || '',
+        level: parseInt(heading.tagName.charAt(1))
+      };
+    });
+    setHeadings(extractedHeadings);
+  }, []);
+
+  const colorClass = color && color !== 'default' ? `notion-${color}` : '';
+
+  return (
+    <div className={`my-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 ${colorClass}`}>
+      <div className="flex items-center space-x-2 mb-4">
+        <span className="text-lg">📋</span>
+        <h3 className="font-semibold text-gray-900 dark:text-gray-100 font-wanted">목차</h3>
+      </div>
+      <nav className="space-y-1">
+        {headings.map((heading) => (
+          <a
+            key={heading.id}
+            href={`#${heading.id}`}
+            className={`block text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-wanted`}
+            style={{ paddingLeft: `${(heading.level - 1) * 1}rem` }}
+          >
+            {heading.text}
+          </a>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+// Breadcrumb 컴포넌트
+function BreadcrumbBlock() {
+  return (
+    <div className="my-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 font-wanted">
+        <span className="text-base">🍞</span>
+        <span>Breadcrumb Navigation</span>
+      </div>
+    </div>
+  );
+}
+
 // HTML 요소들을 React 컴포넌트로 변환하는 전처리 함수
 function preprocessContent(content: string): string {
   let processed = content;
@@ -358,6 +415,22 @@ function preprocessContent(content: string): string {
     /:::template\{title="([^"]*)"\}\s*([\s\S]*?)\s*:::/g,
     (match, title, content) => {
       return `\n\n:::template{title="${title}"}\n${content.trim()}\n:::\n\n`;
+    }
+  );
+  
+  // Table of Contents 처리
+  processed = processed.replace(
+    /:::table-of-contents(?:\s+\{\.notion-([^}]+)\})?\s*:::/g,
+    (match, color) => {
+      return `\n\n:::table-of-contents${color ? `{color="${color}"}` : ''}\n:::\n\n`;
+    }
+  );
+  
+  // Breadcrumb 처리
+  processed = processed.replace(
+    /:::breadcrumb\s*:::/g,
+    () => {
+      return `\n\n:::breadcrumb\n:::\n\n`;
     }
   );
   
@@ -434,8 +507,15 @@ const components: Components = {
   // 헤딩 스타일링 (색상 지원)
   h1: ({ children, className, ...props }) => {
     const colorClass = className ? notionColors[className as keyof typeof notionColors] : '';
+    const headingText = typeof children === 'string' ? children : String(children);
+    const headingId = headingText.toLowerCase().replace(/[^a-z0-9가-힣]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    
     return (
-      <h1 className={`text-3xl font-bold mt-8 mb-4 text-gray-900 dark:text-gray-100 font-wanted ${colorClass}`} {...props}>
+      <h1 
+        id={headingId}
+        className={`text-3xl font-bold mt-8 mb-4 text-gray-900 dark:text-gray-100 font-wanted ${colorClass}`} 
+        {...props}
+      >
         {children}
       </h1>
     );
@@ -443,8 +523,15 @@ const components: Components = {
   
   h2: ({ children, className, ...props }) => {
     const colorClass = className ? notionColors[className as keyof typeof notionColors] : '';
+    const headingText = typeof children === 'string' ? children : String(children);
+    const headingId = headingText.toLowerCase().replace(/[^a-z0-9가-힣]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    
     return (
-      <h2 className={`text-2xl font-semibold mt-6 mb-3 text-gray-900 dark:text-gray-100 font-wanted ${colorClass}`} {...props}>
+      <h2 
+        id={headingId}
+        className={`text-2xl font-semibold mt-6 mb-3 text-gray-900 dark:text-gray-100 font-wanted ${colorClass}`} 
+        {...props}
+      >
         {children}
       </h2>
     );
@@ -452,8 +539,15 @@ const components: Components = {
   
   h3: ({ children, className, ...props }) => {
     const colorClass = className ? notionColors[className as keyof typeof notionColors] : '';
+    const headingText = typeof children === 'string' ? children : String(children);
+    const headingId = headingText.toLowerCase().replace(/[^a-z0-9가-힣]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    
     return (
-      <h3 className={`text-xl font-semibold mt-5 mb-2 text-gray-900 dark:text-gray-100 font-wanted ${colorClass}`} {...props}>
+      <h3 
+        id={headingId}
+        className={`text-xl font-semibold mt-5 mb-2 text-gray-900 dark:text-gray-100 font-wanted ${colorClass}`} 
+        {...props}
+      >
         {children}
       </h3>
     );
@@ -608,6 +702,20 @@ const components: Components = {
         const [, url, title] = fileMatch;
         return <FileBlock url={url || ''} title={title || 'File'} />;
       }
+    }
+    
+    // Table of Contents 처리
+    if (childrenString.includes(':::table-of-contents')) {
+      const tocMatch = childrenString.match(/:::table-of-contents(?:\{color="([^"]+)"\})?\s*:::/);
+      if (tocMatch) {
+        const [, color] = tocMatch;
+        return <TableOfContentsBlock color={color} />;
+      }
+    }
+    
+    // Breadcrumb 처리
+    if (childrenString.includes(':::breadcrumb')) {
+      return <BreadcrumbBlock />;
     }
     
     return (

@@ -108,15 +108,53 @@ export function processCells(cells: any[][]): string[] {
 
 // Helper function to get mention content
 export function getMentionContent(mention: any): string {
+  if (!mention || !mention.type) {
+    return '@mention';
+  }
+
   switch (mention.type) {
     case 'user':
-      return `@${mention.user.name || 'User'}`;
+      if (mention.user) {
+        return `@${mention.user.name || mention.user.id || 'User'}`;
+      }
+      return '@User';
     case 'page':
-      return `[Page](notion://page/${mention.page.id})`;
+      if (mention.page) {
+        return `[Page](notion://page/${mention.page.id})`;
+      }
+      return '[Page]';
     case 'database':
-      return `[Database](notion://database/${mention.database.id})`;
+      if (mention.database) {
+        return `[Database](notion://database/${mention.database.id})`;
+      }
+      return '[Database]';
     case 'date':
-      return mention.date.start;
+      if (mention.date) {
+        const start = mention.date.start;
+        const end = mention.date.end;
+        if (end) {
+          return `${start} → ${end}`;
+        }
+        return start;
+      }
+      return '[Date]';
+    case 'link_preview':
+      if (mention.link_preview) {
+        return `[${mention.link_preview.url}](${mention.link_preview.url})`;
+      }
+      return '[Link Preview]';
+    case 'template_mention':
+      if (mention.template_mention) {
+        switch (mention.template_mention.type) {
+          case 'template_mention_date':
+            return mention.template_mention.template_mention_date || '[Date]';
+          case 'template_mention_user':
+            return mention.template_mention.template_mention_user || '[User]';
+          default:
+            return '[Template]';
+        }
+      }
+      return '[Template]';
     default:
       return '@mention';
   }
@@ -206,4 +244,199 @@ export function getSyncedBlockData(syncedBlock: any): { syncedFrom: string | nul
     syncedFrom: syncedBlock?.synced_from?.block_id || null,
     children: syncedBlock?.children || []
   };
+}
+
+// Helper function to process all block types according to Notion API
+export function getBlockTypeData(block: any): any {
+  if (!block || !block.type) {
+    return null;
+  }
+
+  const blockType = block.type;
+  const blockData = block[blockType] || {};
+
+  // Common properties for all blocks
+  const commonData = {
+    id: block.id,
+    type: blockType,
+    created_time: block.created_time,
+    created_by: block.created_by,
+    last_edited_time: block.last_edited_time,
+    last_edited_by: block.last_edited_by,
+    archived: block.archived,
+    has_children: block.has_children,
+    parent: block.parent,
+  };
+
+  // Type-specific data
+  switch (blockType) {
+    case 'paragraph':
+    case 'heading_1':
+    case 'heading_2':
+    case 'heading_3':
+    case 'bulleted_list_item':
+    case 'numbered_list_item':
+    case 'to_do':
+    case 'toggle':
+    case 'quote':
+    case 'callout':
+      return {
+        ...commonData,
+        rich_text: blockData.rich_text || [],
+        color: blockData.color || 'default',
+        ...(blockType === 'to_do' && { checked: blockData.checked || false }),
+        ...(blockType === 'callout' && { icon: blockData.icon }),
+        ...(blockType.startsWith('heading') && { is_toggleable: blockData.is_toggleable || false }),
+      };
+
+    case 'code':
+      return {
+        ...commonData,
+        rich_text: blockData.rich_text || [],
+        language: blockData.language || 'plain text',
+        caption: blockData.caption || [],
+      };
+
+    case 'image':
+    case 'video':
+    case 'audio':
+    case 'file':
+    case 'pdf':
+      return {
+        ...commonData,
+        type: blockData.type, // 'file' or 'external'
+        file: blockData.file,
+        external: blockData.external,
+        caption: blockData.caption || [],
+      };
+
+    case 'bookmark':
+    case 'link_preview':
+    case 'embed':
+      return {
+        ...commonData,
+        url: blockData.url || '',
+        caption: blockData.caption || [],
+      };
+
+    case 'equation':
+      return {
+        ...commonData,
+        expression: blockData.expression || '',
+      };
+
+    case 'divider':
+      return commonData;
+
+    case 'table':
+      return {
+        ...commonData,
+        table_width: blockData.table_width || 0,
+        has_column_header: blockData.has_column_header || false,
+        has_row_header: blockData.has_row_header || false,
+      };
+
+    case 'table_row':
+      return {
+        ...commonData,
+        cells: blockData.cells || [],
+      };
+
+    case 'column_list':
+    case 'column':
+      return commonData;
+
+    case 'child_page':
+      return {
+        ...commonData,
+        title: blockData.title || 'Untitled',
+      };
+
+    case 'child_database':
+      return {
+        ...commonData,
+        title: blockData.title || 'Untitled Database',
+      };
+
+    case 'table_of_contents':
+    case 'breadcrumb':
+      return {
+        ...commonData,
+        color: blockData.color || 'default',
+      };
+
+    case 'link_to_page':
+      return {
+        ...commonData,
+        type: blockData.type, // 'page_id' or 'database_id'
+        page_id: blockData.page_id,
+        database_id: blockData.database_id,
+      };
+
+    case 'synced_block':
+      return {
+        ...commonData,
+        synced_from: blockData.synced_from,
+      };
+
+    case 'template':
+      return {
+        ...commonData,
+        rich_text: blockData.rich_text || [],
+      };
+
+    case 'unsupported':
+      return commonData;
+
+    default:
+      // For unknown block types, return what we can
+      return {
+        ...commonData,
+        ...blockData,
+      };
+  }
+}
+
+// Helper function to handle pagination for block children
+export async function getAllBlockChildren(blockId: string): Promise<any[]> {
+  let allChildren: any[] = [];
+  let hasMore = true;
+  let nextCursor: string | undefined;
+
+  while (hasMore) {
+    try {
+      const response = await notion.blocks.children.list({
+        block_id: blockId,
+        start_cursor: nextCursor,
+        page_size: 100, // Maximum allowed by Notion API
+      });
+
+      allChildren = allChildren.concat(response.results);
+      hasMore = response.has_more;
+      nextCursor = response.next_cursor || undefined;
+    } catch (error) {
+      console.error('Error fetching block children:', error);
+      break;
+    }
+  }
+
+  return allChildren;
+}
+
+// Helper function to get icon data
+export function getIconData(icon: any): { type: string; emoji?: string; url?: string } {
+  if (!icon) {
+    return { type: 'emoji', emoji: '📄' };
+  }
+
+  switch (icon.type) {
+    case 'emoji':
+      return { type: 'emoji', emoji: icon.emoji };
+    case 'external':
+      return { type: 'external', url: icon.external.url };
+    case 'file':
+      return { type: 'file', url: icon.file.url };
+    default:
+      return { type: 'emoji', emoji: '📄' };
+  }
 } 

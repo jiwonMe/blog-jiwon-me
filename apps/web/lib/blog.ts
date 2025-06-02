@@ -7,7 +7,6 @@ import {
   calculateReadTime, 
   getCoverImage,
   getFileUrl,
-
   processCells,
   getMentionContent,
   optimizeImageUrl,
@@ -18,7 +17,10 @@ import {
   getToggleData,
   getToDoData,
   getTableData,
-  getSyncedBlockData
+  getSyncedBlockData,
+  getBlockTypeData,
+  getAllBlockChildren,
+  getIconData
 } from './notion';
 import { BlogPost, isPageObjectResponse } from '../types/blog';
 import { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints';
@@ -419,15 +421,14 @@ export const getPageContent = unstable_cache(
   }
 );
 
-// Process nested children blocks
+// Process nested children blocks with pagination support
 async function processChildren(blockId: string, indent: string = ''): Promise<string> {
   try {
-    const response = await notion.blocks.children.list({
-      block_id: blockId,
-    });
+    // Use the helper function that handles pagination
+    const children = await getAllBlockChildren(blockId);
 
     let content = '';
-    for (const child of response.results) {
+    for (const child of children) {
       const childContent = await blockToMarkdown(child, indent);
       content += childContent;
     }
@@ -657,7 +658,8 @@ async function blockToMarkdown(block: any, indent: string = ''): Promise<string>
       
       case 'callout':
         const calloutText = richTextToMarkdownWithAnnotations(blockData.rich_text || []);
-        const calloutIcon = blockData.icon?.emoji || blockData.icon?.external?.url || blockData.icon?.file?.url || '💡';
+        const iconData = getIconData(blockData.icon);
+        const calloutIcon = iconData.emoji || iconData.url || '💡';
         const calloutColor = blockData.color !== 'default' ? blockData.color : 'default';
         
         let calloutContent = `:::callout{icon="${calloutIcon}" color="${calloutColor}"}\n${calloutText}\n`;
@@ -719,12 +721,11 @@ async function blockToMarkdown(block: any, indent: string = ''): Promise<string>
         const hasRowHeader = blockData.has_row_header || false;
         
         try {
-          const tableResponse = await notion.blocks.children.list({
-            block_id: block.id,
-          });
+          // Use pagination-aware function to get all table rows
+          const allChildren = await getAllBlockChildren(block.id);
           
           let tableMarkdown = '';
-          const rows = tableResponse.results.filter((row: any) => row.type === 'table_row');
+          const rows = allChildren.filter((row: any) => row.type === 'table_row');
           
           // Debug logging for table processing
           if (process.env.NODE_ENV === 'development') {
@@ -843,8 +844,8 @@ async function blockToMarkdown(block: any, indent: string = ''): Promise<string>
         return `[🗃️ ${dbTitle}](notion://database/${block.id})\n\n`;
       
       case 'table_of_contents':
-        const tocColor = blockData.color !== 'default' ? ` {.notion-${blockData.color}}` : '';
-        return `[📋 Table of Contents]${tocColor}\n\n`;
+        const tocColorClass = blockData.color !== 'default' ? ` {.notion-${blockData.color}}` : '';
+        return `[📋 Table of Contents]${tocColorClass}\n\n`;
       
       case 'breadcrumb':
         return `[🍞 Breadcrumb]\n\n`;
@@ -880,13 +881,39 @@ async function blockToMarkdown(block: any, indent: string = ''): Promise<string>
       case 'unsupported':
         return `[❌ Unsupported block type]\n\n`;
       
+      // Additional block types from Notion API
+      case 'ai_block':
+        return `[🤖 AI Block]\n\n`;
+      
+      case 'breadcrumb':
+        return `:::breadcrumb\n:::\n\n`;
+      
+      // Handle rich text blocks that might have been missed
+      case 'rich_text':
+        if (blockData.rich_text) {
+          const richTextContent = richTextToMarkdownWithAnnotations(blockData.rich_text);
+          return `${richTextContent}\n\n`;
+        }
+        return '';
+      
+      // Handle any block with rich_text property
       default:
         // For any other block types, try to extract text if available
         if (blockData.rich_text) {
           const text = richTextToMarkdownWithAnnotations(blockData.rich_text);
-          return `${text}\n\n`;
+          const color = blockData.color !== 'default' ? ` {.notion-${blockData.color}}` : '';
+          return `${text}${color}\n\n`;
         }
-        console.warn(`Unsupported block type: ${type}`);
+        
+        // Log unknown block types for debugging
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`Unknown block type: ${type}`, {
+            blockId: block.id,
+            blockData: Object.keys(blockData),
+            block
+          });
+        }
+        
         return `[⚠️ Unknown block type: ${type}]\n\n`;
     }
   } catch (error) {
