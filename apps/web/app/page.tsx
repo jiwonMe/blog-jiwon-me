@@ -1,5 +1,6 @@
 import { Button } from "@jiwonme/jds";
 import Link from "next/link";
+import Image from "next/image";
 import { getBlogPosts } from "../lib/blog";
 import { ThumbnailPlaceholder } from "../components/thumbnail-placeholder";
 
@@ -45,12 +46,14 @@ export default async function Home() {
             >
               <div className="flex flex-col">
                 {/* Thumbnail */}
-                <div className="aspect-video overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+                <div className="aspect-video overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center relative">
                   {post.coverImage ? (
-                    <img
+                    <Image
                       src={post.coverImage}
                       alt={post.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                   ) : (
                     <ThumbnailPlaceholder 

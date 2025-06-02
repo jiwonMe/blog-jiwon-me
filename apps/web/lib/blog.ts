@@ -2,6 +2,7 @@ import { notion, BLOG_DATABASE_ID, getPlainText, getDateString, getTags, calcula
 import { BlogPost, isPageObjectResponse } from '../types/blog';
 import { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints';
 import { getFallbackBlogPosts, getFallbackBlogPost, getFallbackTags } from './fallback-data';
+import { unstable_cache } from 'next/cache';
 
 // Generate automatic thumbnail using a placeholder service
 async function generateThumbnail(title: string, tags: string[]): Promise<string> {
@@ -66,30 +67,52 @@ function getColorFromTag(tag: string): string {
   return colors[tag as keyof typeof colors] || '4F46E5'; // Default purple
 }
 
-// Extract first image URL from content blocks
-async function extractFirstImage(pageId: string): Promise<string | null> {
-  try {
-    const response = await notion.blocks.children.list({
-      block_id: pageId,
-    });
+// Optimize image URL for Next.js Image component
+function optimizeImageUrl(url: string): string {
+  if (!url) return url;
+  
+  // For Notion file URLs, we'll proxy them through our API to avoid CORS issues
+  if (url.includes('notion.so') || url.includes('amazonaws.com')) {
+    return `/api/image-proxy?url=${encodeURIComponent(url)}`;
+  }
+  
+  return url;
+}
 
-    for (const block of response.results) {
-      if ('type' in block && block.type === 'image') {
-        const imageBlock = block as any;
-        if (imageBlock.image.type === 'external') {
-          return imageBlock.image.external.url;
-        } else if (imageBlock.image.type === 'file') {
-          return imageBlock.image.file.url;
+// Extract first image URL from content blocks (cached)
+const extractFirstImage = unstable_cache(
+  async (pageId: string): Promise<string | null> => {
+    try {
+      const response = await notion.blocks.children.list({
+        block_id: pageId,
+      });
+
+      for (const block of response.results) {
+        if ('type' in block && block.type === 'image') {
+          const imageBlock = block as any;
+          let imageUrl = '';
+          if (imageBlock.image.type === 'external') {
+            imageUrl = imageBlock.image.external.url;
+          } else if (imageBlock.image.type === 'file') {
+            imageUrl = imageBlock.image.file.url;
+          }
+          
+          return imageUrl ? optimizeImageUrl(imageUrl) : null;
         }
       }
+      
+      return null;
+    } catch (error) {
+      console.error('Error extracting first image:', error);
+      return null;
     }
-    
-    return null;
-  } catch (error) {
-    console.error('Error extracting first image:', error);
-    return null;
+  },
+  ['extract-first-image'],
+  {
+    revalidate: 3600, // Cache for 1 hour
+    tags: ['notion-images']
   }
-}
+);
 
 // Helper functions to safely extract properties
 function getTitle(page: PageObjectResponse): string {
@@ -191,8 +214,10 @@ async function notionPageToBlogPost(page: PageObjectResponse, content: string, f
   
   // Thumbnail priority: 1. Cover image, 2. First image in content, 3. Auto-generated (optional)
   let thumbnail = getCoverImage(page.cover);
-  if (!thumbnail && firstImageUrl) {
-    thumbnail = firstImageUrl;
+  if (thumbnail) {
+    thumbnail = optimizeImageUrl(thumbnail);
+  } else if (firstImageUrl) {
+    thumbnail = firstImageUrl; // Already optimized in extractFirstImage
   }
   // Note: Auto-generated thumbnails are handled in the UI layer for better performance
   // if (!thumbnail) {
@@ -215,123 +240,144 @@ async function notionPageToBlogPost(page: PageObjectResponse, content: string, f
   };
 }
 
-// Fetch all published blog posts
-export async function getBlogPosts(): Promise<BlogPost[]> {
-  try {
-    if (!BLOG_DATABASE_ID || !process.env.NOTION_TOKEN) {
-      console.warn('Notion not configured, using fallback data');
-      return getFallbackBlogPosts();
-    }
-
-    const response = await notion.databases.query({
-      database_id: BLOG_DATABASE_ID,
-      filter: {
-        property: 'Published',
-        checkbox: {
-          equals: true,
-        },
-      },
-      sorts: [
-        {
-          property: 'Date',
-          direction: 'descending',
-        },
-      ],
-    });
-
-    const posts: BlogPost[] = [];
-
-    for (const page of response.results) {
-      try {
-        if (!isPageObjectResponse(page)) {
-          continue;
-        }
-        // Get page content and first image
-        const content = await getPageContent(page.id);
-        const firstImageUrl = await extractFirstImage(page.id);
-        const blogPost = await notionPageToBlogPost(page, content, firstImageUrl || undefined);
-        posts.push(blogPost);
-      } catch (error) {
-        console.error(`Error processing page ${page.id}:`, error);
-        // Continue with other pages even if one fails
+// Fetch all published blog posts (cached)
+export const getBlogPosts = unstable_cache(
+  async (): Promise<BlogPost[]> => {
+    try {
+      if (!BLOG_DATABASE_ID || !process.env.NOTION_TOKEN) {
+        console.warn('Notion not configured, using fallback data');
+        return getFallbackBlogPosts();
       }
-    }
 
-    return posts;
-  } catch (error) {
-    console.error('Error fetching blog posts:', error);
-    console.warn('Falling back to sample data');
-    return getFallbackBlogPosts();
-  }
-}
-
-// Fetch a single blog post by slug
-export async function getBlogPost(slug: string): Promise<BlogPost | null> {
-  try {
-    if (!BLOG_DATABASE_ID || !process.env.NOTION_TOKEN) {
-      console.warn('Notion not configured, using fallback data');
-      return getFallbackBlogPost(slug);
-    }
-
-    const response = await notion.databases.query({
-      database_id: BLOG_DATABASE_ID,
-      filter: {
-        and: [
-          {
-            property: 'Published',
-            checkbox: {
-              equals: true,
-            },
+      const response = await notion.databases.query({
+        database_id: BLOG_DATABASE_ID,
+        filter: {
+          property: 'Published',
+          checkbox: {
+            equals: true,
           },
+        },
+        sorts: [
           {
-            property: 'Slug',
-            rich_text: {
-              equals: slug,
-            },
+            property: 'Date',
+            direction: 'descending',
           },
         ],
-      },
-    });
+      });
 
-    if (response.results.length === 0) {
-      return null;
-    }
+      const posts: BlogPost[] = [];
 
-    const page = response.results[0];
-    if (!isPageObjectResponse(page)) {
-      return null;
+      for (const page of response.results) {
+        try {
+          if (!isPageObjectResponse(page)) {
+            continue;
+          }
+          // Get page content and first image
+          const content = await getPageContent(page.id);
+          const firstImageUrl = await extractFirstImage(page.id);
+          const blogPost = await notionPageToBlogPost(page, content, firstImageUrl || undefined);
+          posts.push(blogPost);
+        } catch (error) {
+          console.error(`Error processing page ${page.id}:`, error);
+          // Continue with other pages even if one fails
+        }
+      }
+
+      return posts;
+    } catch (error) {
+      console.error('Error fetching blog posts:', error);
+      console.warn('Falling back to sample data');
+      return getFallbackBlogPosts();
     }
-    
-    const content = await getPageContent(page.id);
-    const firstImageUrl = await extractFirstImage(page.id);
-    
-    return await notionPageToBlogPost(page, content, firstImageUrl || undefined);
-  } catch (error) {
-    console.error('Error fetching blog post:', error);
-    console.warn('Falling back to sample data');
-    return getFallbackBlogPost(slug);
+  },
+  ['blog-posts'],
+  {
+    revalidate: 1800, // Cache for 30 minutes
+    tags: ['notion-blog', 'blog-posts']
   }
-}
+);
 
-// Get page content as markdown
-export async function getPageContent(pageId: string): Promise<string> {
-  try {
-    const response = await notion.blocks.children.list({
-      block_id: pageId,
-    });
+// Fetch a single blog post by slug (cached)
+export const getBlogPost = unstable_cache(
+  async (slug: string): Promise<BlogPost | null> => {
+    try {
+      if (!BLOG_DATABASE_ID || !process.env.NOTION_TOKEN) {
+        console.warn('Notion not configured, using fallback data');
+        return getFallbackBlogPost(slug);
+      }
 
-    let content = '';
-    
-    for (const block of response.results) {
-      content += await blockToMarkdown(block);
+      const response = await notion.databases.query({
+        database_id: BLOG_DATABASE_ID,
+        filter: {
+          and: [
+            {
+              property: 'Published',
+              checkbox: {
+                equals: true,
+              },
+            },
+            {
+              property: 'Slug',
+              rich_text: {
+                equals: slug,
+              },
+            },
+          ],
+        },
+      });
+
+      if (response.results.length === 0) {
+        return null;
+      }
+
+      const page = response.results[0];
+      if (!isPageObjectResponse(page)) {
+        return null;
+      }
+      
+      const content = await getPageContent(page.id);
+      const firstImageUrl = await extractFirstImage(page.id);
+      
+      return await notionPageToBlogPost(page, content, firstImageUrl || undefined);
+    } catch (error) {
+      console.error('Error fetching blog post:', error);
+      console.warn('Falling back to sample data');
+      return getFallbackBlogPost(slug);
     }
-
-    return content;
-  } catch (error) {
-    console.error('Error fetching page content:', error);
-    return '';
+  },
+  ['blog-post'],
+  {
+    revalidate: 3600, // Cache for 1 hour
+    tags: ['notion-blog']
   }
-}
+);
+
+// Get page content as markdown (cached)
+export const getPageContent = unstable_cache(
+  async (pageId: string): Promise<string> => {
+    try {
+      const response = await notion.blocks.children.list({
+        block_id: pageId,
+      });
+
+      let content = '';
+      
+      for (const block of response.results) {
+        content += await blockToMarkdown(block);
+      }
+
+      return content;
+    } catch (error) {
+      console.error('Error fetching page content:', error);
+      return '';
+    }
+  },
+  ['page-content'],
+  {
+    revalidate: 3600, // Cache for 1 hour
+    tags: ['notion-content']
+  }
+);
 
 // Convert Notion block to markdown
 async function blockToMarkdown(block: any): Promise<string> {
@@ -368,9 +414,10 @@ async function blockToMarkdown(block: any): Promise<string> {
       return '---\n\n';
     
     case 'image':
-      const imageUrl = block.image.type === 'external' 
+      let imageUrl = block.image.type === 'external' 
         ? block.image.external.url 
         : block.image.file.url;
+      imageUrl = optimizeImageUrl(imageUrl);
       const caption = block.image.caption ? getPlainText(block.image.caption) : '';
       return `![${caption}](${imageUrl})\n\n`;
     
@@ -387,18 +434,25 @@ async function blockToMarkdown(block: any): Promise<string> {
   }
 }
 
-// Get all unique tags from published posts
-export async function getAllTags(): Promise<string[]> {
-  try {
-    if (!BLOG_DATABASE_ID || !process.env.NOTION_TOKEN) {
+// Get all unique tags from published posts (cached)
+export const getAllTags = unstable_cache(
+  async (): Promise<string[]> => {
+    try {
+      if (!BLOG_DATABASE_ID || !process.env.NOTION_TOKEN) {
+        return getFallbackTags();
+      }
+      
+      const posts = await getBlogPosts();
+      const allTags = posts.flatMap(post => post.tags);
+      return Array.from(new Set(allTags));
+    } catch (error) {
+      console.error('Error fetching tags:', error);
       return getFallbackTags();
     }
-    
-    const posts = await getBlogPosts();
-    const allTags = posts.flatMap(post => post.tags);
-    return Array.from(new Set(allTags));
-  } catch (error) {
-    console.error('Error fetching tags:', error);
-    return getFallbackTags();
+  },
+  ['all-tags'],
+  {
+    revalidate: 1800, // Cache for 30 minutes
+    tags: ['notion-blog', 'blog-tags']
   }
-} 
+); 
